@@ -1170,7 +1170,9 @@ class InlineTestFinder:
 ######################################################################
 class InlineTestRunner:
     def run(self, test: InlineTest, out: List) -> None:
-        tree = ast.parse(test.to_test())
+        test_str = test.write_imports()
+        test_str += test.to_test()
+        tree = ast.parse(test_str)
         codeobj = compile(tree, filename="<ast>", mode="exec")
         start_time = time.time()
         if test.timeout > 0:
