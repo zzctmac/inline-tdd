@@ -178,12 +178,12 @@ class InlineTest:
     def write_imports(self):
         import_str = ""
         for n in self.import_stmts:
-              import_str += ExtractInlineTest.node_to_source_code(n) + "\n"
+            import_str += ExtractInlineTest.node_to_source_code(n) + "\n"
         return import_str
 
     def to_test(self):
         prefix = "\n"
-        
+
         if self.prev_stmt_type == PrevStmtType.CondExpr:
             if self.assume_stmts == []:
                 return prefix.join(
@@ -305,11 +305,11 @@ class ExtractInlineTest(ast.NodeTransformer):
     arg_timeout_str = "timeout"
 
     assume = "assume"
-    
+
     import_str = "import"
     from_str = "from"
     as_str = "as"
-    
+
     inline_module_imported = False
 
     def __init__(self):
@@ -341,8 +341,8 @@ class ExtractInlineTest(ast.NodeTransformer):
         else:
             raise NotImplementedError("inline test: failed to find a tested statement")
 
-    def find_previous_stmt(self, node):
-        # get the previous stmt that is not itest() by finding the previous sibling
+    def find_following_stmt(self, node):
+        # get the following stmt that is not itest() by finding the following sibling
         stmt_node = node
         while not isinstance(stmt_node, ast.Expr):
             stmt_node = stmt_node.parent
@@ -351,18 +351,42 @@ class ExtractInlineTest(ast.NodeTransformer):
             raise MalformedException(
                 f"inline test: failed to find statement {ExtractInlineTest.node_to_source_code(stmt_node)} in {self.class_name_str}"
             )
-        elif index_stmt_node == len(stmt_node.parent.children) - 1:
-            # the first stmt in the block, but AST is parsed in revserse order so it appears to be the last one in children list
-            # if / while block
-            return self.find_condition_stmt(stmt_node)
+        elif isinstance(stmt_node.parent, (ast.If, ast.While)):
+            # If in if/while block, check if this is the first statement in source order
+            if index_stmt_node == len(stmt_node.parent.children) - 1:
+                # This is the first statement in the block, so we're testing the condition
+                return self.find_condition_stmt(stmt_node)
+            else:
+                # Look for the following statement (going backwards in the children array)
+                for i in range(1, index_stmt_node + 1):
+                    next_stmt_node = stmt_node.parent.children[index_stmt_node - i]
+                    # Check if it's an Expr containing a Call (inline test)
+                    if (
+                        isinstance(next_stmt_node, ast.Expr)
+                        and isinstance(next_stmt_node.value, ast.Call)
+                        and self.is_inline_test_class(next_stmt_node.value)
+                    ):
+                        continue
+                    else:
+                        return next_stmt_node
+                # If only itest() calls found, test the condition
+                return self.find_condition_stmt(stmt_node)
         else:
-            for i in range(1, len(stmt_node.parent.children) - index_stmt_node):
-                prev_stmt_node = stmt_node.parent.children[index_stmt_node + i]
-                if isinstance(prev_stmt_node.value, ast.Call) and self.is_inline_test_class(prev_stmt_node.value):
+            # In module or function, look for the following statement
+            # (going backwards in the children array since it's reverse order)
+            for i in range(1, index_stmt_node + 1):
+                next_stmt_node = stmt_node.parent.children[index_stmt_node - i]
+                # Check if it's an Expr containing a Call (inline test)
+                if (
+                    isinstance(next_stmt_node, ast.Expr)
+                    and isinstance(next_stmt_node.value, ast.Call)
+                    and self.is_inline_test_class(next_stmt_node.value)
+                ):
                     continue
                 else:
-                    return prev_stmt_node
-            return self.find_condition_stmt(prev_stmt_node)
+                    return next_stmt_node
+            # If no following statement found, raise error
+            raise MalformedException(f"inline test: no statement following the test at line {stmt_node.lineno}")
 
     def collect_inline_test_calls(self, node, inline_test_calls: List[ast.Call]):
         """
@@ -381,10 +405,10 @@ class ExtractInlineTest(ast.NodeTransformer):
 
         while not isinstance(node, ast.Module) and node.parent != None:
             node = node.parent
-       
+
         if not isinstance(node, ast.Module):
             return
-            
+
         for child in node.children:
             if isinstance(child, ast.Import):
                 import_calls.append(child)
@@ -395,7 +419,7 @@ class ExtractInlineTest(ast.NodeTransformer):
         """
         Parse a constructor call.
         """
-        
+
         # Argument Order:
         # 0) test_name (str)
         # 1) parameterized (bool)
@@ -404,34 +428,31 @@ class ExtractInlineTest(ast.NodeTransformer):
         # 4) disabled (bool)
         # 5) timeout (positive float)
         # 6) devices (str array)
-        
-        
-        
+
         keyword_idxs = {
-            self.arg_test_name_str : 0,
-            self.arg_parameterized_str : 1,
-            self.arg_repeated_str : 2,
-            self.arg_tag_str : 3,
-            self.arg_disabled_str : 4,
-            self.arg_timeout_str : 5,
+            self.arg_test_name_str: 0,
+            self.arg_parameterized_str: 1,
+            self.arg_repeated_str: 2,
+            self.arg_tag_str: 3,
+            self.arg_disabled_str: 4,
+            self.arg_timeout_str: 5,
         }
-        
+
         NUM_OF_ARGUMENTS = 6
         if len(node.args) + len(node.keywords) <= NUM_OF_ARGUMENTS:
             # positional arguments
             self.parse_constructor_args(node.args)
-            
-            #keyword arguments
+
+            # keyword arguments
             keyword_args = []
-            
-            #create list with 7 null values (for each position)
+
+            # create list with 7 null values (for each position)
             for i in range(0, NUM_OF_ARGUMENTS):
                 keyword_args.append(None)
-           
+
             for keyword in node.keywords:
                 keyword_args[keyword_idxs[keyword.arg]] = keyword.value
             self.parse_constructor_args(keyword_args)
-
 
         if not self.cur_inline_test.test_name:
             # by default, use lineno as test name
@@ -447,60 +468,59 @@ class ExtractInlineTest(ast.NodeTransformer):
             TAG_STR = 3
             DISABLED = 4
             TIMEOUT = 5
-        
+
         property_names = {
-            ConstrArgs.TEST_NAME : "test_name",
-            ConstrArgs.PARAMETERIZED : "parameterized",
-            ConstrArgs.REPEATED : "repeated",
-            ConstrArgs.TAG_STR : "tag",
-            ConstrArgs.DISABLED : "disabled",
-            ConstrArgs.TIMEOUT : "timeout",
+            ConstrArgs.TEST_NAME: "test_name",
+            ConstrArgs.PARAMETERIZED: "parameterized",
+            ConstrArgs.REPEATED: "repeated",
+            ConstrArgs.TAG_STR: "tag",
+            ConstrArgs.DISABLED: "disabled",
+            ConstrArgs.TIMEOUT: "timeout",
         }
-            
+
         pre_38_val_names = {
-            ConstrArgs.TEST_NAME : "s",
-            ConstrArgs.PARAMETERIZED : "value",
-            ConstrArgs.REPEATED : "n",
-            ConstrArgs.TAG_STR : "s",
-            ConstrArgs.DISABLED : "value",
-            ConstrArgs.TIMEOUT : "n",
+            ConstrArgs.TEST_NAME: "s",
+            ConstrArgs.PARAMETERIZED: "value",
+            ConstrArgs.REPEATED: "n",
+            ConstrArgs.TAG_STR: "s",
+            ConstrArgs.DISABLED: "value",
+            ConstrArgs.TIMEOUT: "n",
         }
-                
+
         pre_38_expec_ast_arg_type = {
-            ConstrArgs.TEST_NAME : ast.Str,
-            ConstrArgs.PARAMETERIZED : ast.NameConstant,
-            ConstrArgs.REPEATED : ast.Num,
-            ConstrArgs.TAG_STR : ast.List,
-            ConstrArgs.DISABLED : ast.NameConstant,
-            ConstrArgs.TIMEOUT : ast.Num,
+            ConstrArgs.TEST_NAME: ast.Str,
+            ConstrArgs.PARAMETERIZED: ast.NameConstant,
+            ConstrArgs.REPEATED: ast.Num,
+            ConstrArgs.TAG_STR: ast.List,
+            ConstrArgs.DISABLED: ast.NameConstant,
+            ConstrArgs.TIMEOUT: ast.Num,
         }
-        
-        expected_ast_arg_type = { 
-            ConstrArgs.TEST_NAME : ast.Constant,
-            ConstrArgs.PARAMETERIZED : ast.Constant,
-            ConstrArgs.REPEATED : ast.Constant,
-            ConstrArgs.TAG_STR : ast.List,
-            ConstrArgs.DISABLED : ast.Constant,
-            ConstrArgs.TIMEOUT : ast.Constant
+
+        expected_ast_arg_type = {
+            ConstrArgs.TEST_NAME: ast.Constant,
+            ConstrArgs.PARAMETERIZED: ast.Constant,
+            ConstrArgs.REPEATED: ast.Constant,
+            ConstrArgs.TAG_STR: ast.List,
+            ConstrArgs.DISABLED: ast.Constant,
+            ConstrArgs.TIMEOUT: ast.Constant,
         }
-        
+
         expected_ast_val_args = {
-            ConstrArgs.TEST_NAME : [str],
-            ConstrArgs.PARAMETERIZED : [bool],
-            ConstrArgs.REPEATED : [int],
-            ConstrArgs.TAG_STR : [None],
-            ConstrArgs.DISABLED : [bool],
-            ConstrArgs.TIMEOUT : [float, int],
+            ConstrArgs.TEST_NAME: [str],
+            ConstrArgs.PARAMETERIZED: [bool],
+            ConstrArgs.REPEATED: [int],
+            ConstrArgs.TAG_STR: [None],
+            ConstrArgs.DISABLED: [bool],
+            ConstrArgs.TIMEOUT: [float, int],
         }
-        
+
         NUM_OF_ARGUMENTS = 6
-        
+
         # Arguments organized by expected ast type, value type, and index in that order
         for index, arg in enumerate(args):
             # Skips over null arguments; needed for keywords
             if arg == None:
                 continue
-            
 
             # Assumes version is past 3.8, no explicit references to ast.Constant before 3.8
             else:
@@ -508,14 +528,14 @@ class ExtractInlineTest(ast.NodeTransformer):
                 corr_val_type = False
                 value_prop_name = ""
                 arg_idx = ConstrArgs(index)
-                
+
                 if sys.version_info >= (3, 8, 0) and isinstance(arg, expected_ast_arg_type[arg_idx]):
                     corr_arg_type = True
                     value_prop_name = "value"
                 elif sys.version_info < (3, 8, 0) and isinstance(arg, pre_38_expec_ast_arg_type[arg_idx]):
                     corr_arg_type = True
                     value_prop_name = pre_38_val_names[arg_idx]
-                
+
                 # Verifies value types; skipped for ast node types with no nested values
                 for arg_type in expected_ast_val_args[arg_idx]:
                     if arg_type == None:
@@ -524,7 +544,7 @@ class ExtractInlineTest(ast.NodeTransformer):
                     if isinstance(getattr(arg, value_prop_name), arg_type):
                         corr_val_type = True
                         break
-                
+
                 if corr_val_type and corr_arg_type:
                     # Accounts for additional checks for REPEATED and TAG_STR arguments
                     if arg_idx == ConstrArgs.REPEATED:
@@ -534,27 +554,24 @@ class ExtractInlineTest(ast.NodeTransformer):
                         self.cur_inline_test.repeated = value
                     elif arg_idx == ConstrArgs.TAG_STR:
                         tags = []
-                        
+
                         if sys.version_info < (3, 8, 0):
                             elt_type = ast.Str
                         else:
                             elt_type = ast.Constant
-                        
+
                         for elt in arg.elts:
                             value = getattr(elt, value_prop_name)
-                            if (not isinstance(elt, elt_type) and isinstance(value, str)):
+                            if not isinstance(elt, elt_type) and isinstance(value, str):
                                 raise MalformedException(f"tag can only be List of string")
                             tags.append(value)
                         self.cur_inline_test.tag = tags
                     # For non-special cases, set the attribute defined by the dictionary
                     else:
-                        setattr(self.cur_inline_test,
-                                property_names[arg_idx],
-                                getattr(arg, value_prop_name))
-                    
-                   
+                        setattr(self.cur_inline_test, property_names[arg_idx], getattr(arg, value_prop_name))
+
                     ## Match implementation of above conditional tree; commented since Python < 3.10 does not support match
-                    
+
                     # match arg_idx:
                     #     case ConstrArgs.REPEATED:
                     #         if arg.value <= 0:
@@ -576,7 +593,7 @@ class ExtractInlineTest(ast.NodeTransformer):
                     raise MalformedException(
                         f"inline test: {self.class_name_str}() accepts {NUM_OF_ARGUMENTS} arguments. 'test_name' must be a string constant, 'parameterized' must be a boolean constant, 'repeated' must be a positive integer, 'tag' must be a list of string, 'timeout' must be a positive float"
                     )
-              
+
     def parameterized_inline_tests_init(self, node: ast.List):
         if not self.cur_inline_test.parameterized_inline_tests:
             self.cur_inline_test.parameterized_inline_tests = [InlineTest() for _ in range(len(node.elts))]
@@ -913,7 +930,7 @@ class ExtractInlineTest(ast.NodeTransformer):
                 self.cur_inline_test.check_stmts.append(assert_node)
         else:
             raise MalformedException("inline test: invalid check_not_same(), expected 2 args")
-    
+
     def build_fail(self):
         equal_node = ast.Compare(
             left=ast.Constant(0),
@@ -964,11 +981,11 @@ class ExtractInlineTest(ast.NodeTransformer):
     def parse_inline_test(self, node):
         import_calls = []
         import_from_calls = []
-        inline_test_calls = [] 
-        
+        inline_test_calls = []
+
         self.collect_inline_test_calls(node, inline_test_calls)
         self.collect_import_calls(node, import_calls, import_from_calls)
-        
+
         inline_test_calls.reverse()
 
         if len(inline_test_calls) <= 1:
@@ -1001,7 +1018,6 @@ class ExtractInlineTest(ast.NodeTransformer):
             self.cur_inline_test.import_stmts.append(import_stmt)
         for import_stmt in import_from_calls:
             self.cur_inline_test.import_stmts.append(import_stmt)
-
 
         # "check_eq" or "check_true" or "check_false" or "check_neq"
         for call in inline_test_calls[inline_test_call_index:]:
@@ -1047,9 +1063,9 @@ class ExtractInlineTest(ast.NodeTransformer):
         if self.inline_module_imported == False:
             return self.generic_visit(node)
         if self.is_inline_test_class(node.value):
-            # get previous stmt
-            self.cur_inline_test.previous_stmts.append(self.find_previous_stmt(node))
-            # pase inline test
+            # get following stmt for TDD mode
+            self.cur_inline_test.previous_stmts.append(self.find_following_stmt(node))
+            # parse inline test
             self.parse_inline_test(node.value)
         return self.generic_visit(node)
 
