@@ -10,7 +10,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
 import ast
-from inline.plugin import ExtractInlineTest
+from inline_tdd.plugin import ExtractInlineTest
 
 
 def test_tdd_mode():
@@ -18,10 +18,10 @@ def test_tdd_mode():
 
     # Test case 1: Simple function
     code1 = """
-from inline import itest
+from inline_tdd import itestdd
 
 def add(a, b):
-    itest().given(a, 2).given(b, 3).check_eq(result, 5)
+    itestdd().given(a, 2).given(b, 3).check_eq(result, 5)
     result = a + b
     return result
 """
@@ -41,7 +41,7 @@ def add(a, b):
     test = extractor.inline_test_list[0]
 
     # Verify the test is testing the correct statement
-    from inline.plugin import ExtractInlineTest as ET
+    from inline_tdd.plugin import ExtractInlineTest as ET
 
     source_code = ET.node_to_source_code(test.previous_stmts[0])
     assert "result = a + b" in source_code, f"Expected to test assignment, got: {source_code}"
@@ -50,10 +50,10 @@ def add(a, b):
 
     # Test case 2: Module level
     code2 = """
-from inline import itest
+from inline_tdd import itestdd
 
 x = 0
-itest().given(x, 5).check_eq(x, 5)
+itestdd().given(x, 5).check_eq(x, 5)
 x = x + 1
 """
 

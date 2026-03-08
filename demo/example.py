@@ -1,7 +1,7 @@
 # Taken from https://github.com/google-research/bert modeling.py
 import collections
 import re
-from inline import itest
+from inline_tdd import itestdd
 
 
 def get_assignment_map_from_checkpoint(tvars, init_checkpoint):
@@ -15,9 +15,9 @@ def get_assignment_map_from_checkpoint(tvars, init_checkpoint):
         # statement under test
         m = re.match("^(.*):\\d+$", name)
         # inline test
-        itest().given(name, "a:0").check_eq(m.group(1), "a")
+        itestdd().given(name, "a:0").check_eq(m.group(1), "a")
         # a failing inline test
-        # itest().given(name, "a:0").check_eq(m.group(1), "aaa")
+        # itestdd().given(name, "a:0").check_eq(m.group(1), "aaa")
         if m is not None:
             name = m.group(1)
         name_to_variable[name] = var

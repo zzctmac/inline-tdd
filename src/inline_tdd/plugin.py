@@ -284,8 +284,8 @@ class InlinetestParser:
 
 
 class ExtractInlineTest(ast.NodeTransformer):
-    package_name_str = "inline"
-    class_name_str = "itest"
+    package_name_str = "inline_tdd"
+    class_name_str = "itestdd"
     check_eq_str = "check_eq"
     check_true_str = "check_true"
     check_false_str = "check_false"
@@ -341,52 +341,188 @@ class ExtractInlineTest(ast.NodeTransformer):
         else:
             raise NotImplementedError("inline test: failed to find a tested statement")
 
-    def find_following_stmt(self, node):
-        # get the following stmt that is not itest() by finding the following sibling
+    def find_related_stmt(self, node):
+        """
+        Find the statement related to the inline test.
+        For TDD mode: returns the statement after itestdd (the one being tested)
+        For traditional mode: returns the statement before itestdd (the one that was tested)
+        """
+        # Navigate up to find the Expr containing the itestdd() call
         stmt_node = node
         while not isinstance(stmt_node, ast.Expr):
             stmt_node = stmt_node.parent
-        index_stmt_node = stmt_node.parent.children.index(stmt_node)
-        if index_stmt_node < 0 or index_stmt_node > len(stmt_node.parent.children) - 1:
+
+        children = stmt_node.parent.children
+        node_idx = children.index(stmt_node)
+
+        # Check bounds
+        if node_idx < 0 or node_idx >= len(children):
             raise MalformedException(
                 f"inline test: failed to find statement {ExtractInlineTest.node_to_source_code(stmt_node)} in {self.class_name_str}"
             )
-        elif isinstance(stmt_node.parent, (ast.If, ast.While)):
-            # If in if/while block, check if this is the first statement in source order
-            if index_stmt_node == len(stmt_node.parent.children) - 1:
-                # This is the first statement in the block, so we're testing the condition
-                return self.find_condition_stmt(stmt_node)
-            else:
-                # Look for the following statement (going backwards in the children array)
-                for i in range(1, index_stmt_node + 1):
-                    next_stmt_node = stmt_node.parent.children[index_stmt_node - i]
-                    # Check if it's an Expr containing a Call (inline test)
-                    if (
-                        isinstance(next_stmt_node, ast.Expr)
-                        and isinstance(next_stmt_node.value, ast.Call)
-                        and self.is_inline_test_class(next_stmt_node.value)
-                    ):
-                        continue
-                    else:
-                        return next_stmt_node
-                # If only itest() calls found, test the condition
-                return self.find_condition_stmt(stmt_node)
-        else:
-            # In module or function, look for the following statement
-            # (going backwards in the children array since it's reverse order)
-            for i in range(1, index_stmt_node + 1):
-                next_stmt_node = stmt_node.parent.children[index_stmt_node - i]
-                # Check if it's an Expr containing a Call (inline test)
-                if (
-                    isinstance(next_stmt_node, ast.Expr)
-                    and isinstance(next_stmt_node.value, ast.Call)
-                    and self.is_inline_test_class(next_stmt_node.value)
-                ):
-                    continue
-                else:
-                    return next_stmt_node
-            # If no following statement found, raise error
-            raise MalformedException(f"inline test: no statement following the test at line {stmt_node.lineno}")
+
+        # Special handling for if/while blocks
+        if isinstance(stmt_node.parent, (ast.If, ast.While)):
+            # For if/while blocks, we always test the statement after itestdd in the block
+            # Find the first non-itestdd statement after this itestdd (in execution order)
+            # Since children is in reverse execution order, we look at lower indices
+            for i in range(node_idx - 1, -1, -1):
+                stmt = children[i]
+                if not self._is_itestdd_call(stmt):
+                    return stmt
+
+            # If no non-itestdd statement found after itestdd in the block, test the condition
+            return self.find_condition_stmt(stmt_node)
+
+        # Regular case: module or function body
+        # In TDD mode, itestdd appears before the tested statement in source code,
+        # so in reverse-ordered children list, itestdd comes after the target.
+        # In traditional mode, itestdd appears after the tested statement,
+        # so in reverse-ordered children list, itestdd comes before the target.
+
+        # Try TDD mode first: look backward (lower indices) for a non-itestdd statement
+        for i in range(1, node_idx + 1):
+            candidate = children[node_idx - i]
+            if not self._is_itestdd_call(candidate):
+                return candidate
+
+        # If no non-itestdd found backward, try traditional mode: look forward (higher indices)
+        for i in range(1, len(children) - node_idx):
+            candidate = children[node_idx + i]
+            if not self._is_itestdd_call(candidate):
+                return candidate
+
+        raise MalformedException(f"inline test: no statement found related to the test at line {stmt_node.lineno}")
+
+    def _is_itestdd_call(self, node):
+        """Check if a node is an itestdd() call"""
+        return isinstance(node, ast.Expr) and isinstance(node.value, ast.Call) and self.is_inline_test_class(node.value)
+
+    def collect_preceding_stmts_tdd(self, itestdd_expr, target_stmt):
+        """
+        In TDD mode (itestdd before statement), collect all statements from the beginning
+        of the code block up to and including the target statement.
+
+        Args:
+            itestdd_expr: The Expr node containing the itestdd() call
+            target_stmt: The target statement being tested
+
+        Returns:
+            List[ast.stmt]: List of statements to include in the test (in execution order)
+        """
+        preceding_stmts = []
+
+        # If parent doesn't have children attribute, just return target_stmt
+        if not hasattr(itestdd_expr.parent, "children"):
+            return [target_stmt]
+
+        # children list is in reverse execution order (last statement first)
+        children = itestdd_expr.parent.children
+
+        # Check if target_stmt is in children (it might be a condition that's not a child)
+        if target_stmt not in children:
+            # If target_stmt is not in children, it means it's inside if/while body
+            # We need to find which block (body or orelse) contains the target
+            parent_stmt = itestdd_expr.parent
+
+            if isinstance(parent_stmt, (ast.If, ast.While)):
+                # Check if target is in body
+                if hasattr(parent_stmt, "body") and target_stmt in parent_stmt.body:
+                    # Create a modified if/while with only statements up to target in body
+                    new_stmt = self._trim_block_to_target(parent_stmt, target_stmt, "body")
+                    return [new_stmt]
+                # Check if target is in orelse
+                elif hasattr(parent_stmt, "orelse") and target_stmt in parent_stmt.orelse:
+                    # Create a modified if/while with only statements up to target in orelse
+                    new_stmt = self._trim_block_to_target(parent_stmt, target_stmt, "orelse")
+                    return [new_stmt]
+
+            # Fallback: return the entire statement with itestdd removed
+            clean_stmt = self._remove_itestdd_from_stmt(parent_stmt)
+            return [clean_stmt]
+
+        # Find target statement index
+        target_idx = children.index(target_stmt)
+
+        # Collect from beginning of block (end of children list) up to and including target
+        # In reverse-ordered list, we traverse from highest indices to lower indices,
+        # which gives us statements from earliest to latest execution order
+        for i in range(len(children) - 1, target_idx - 1, -1):
+            stmt = children[i]
+
+            # Skip itestdd() calls themselves
+            if (
+                isinstance(stmt, ast.Expr)
+                and isinstance(stmt.value, ast.Call)
+                and self.is_inline_test_class(stmt.value)
+            ):
+                continue
+
+            preceding_stmts.append(stmt)
+
+        # If target is a control flow statement, clean it (remove nested itestdd calls)
+        if isinstance(target_stmt, (ast.If, ast.While, ast.For, ast.AsyncFor)) and preceding_stmts:
+            # The last statement in preceding_stmts is the control flow statement
+            # Clean it and replace in the list
+            clean_stmt = self._remove_itestdd_from_stmt(target_stmt)
+            preceding_stmts[-1] = clean_stmt
+
+        # The list is already in execution order (we collected from earliest to latest)
+        return preceding_stmts
+
+    def _remove_itestdd_from_stmt(self, stmt):
+        """
+        Create a copy of the statement with itestdd() calls removed.
+        This is needed when collecting preceding statements for itestdd inside if/while blocks.
+        """
+        import copy
+
+        class ItestRemover(ast.NodeTransformer):
+            def __init__(self, parser):
+                self.parser = parser
+
+            def visit_Expr(self, node):
+                # Remove Expr nodes containing itestdd() calls
+                if isinstance(node.value, ast.Call) and self.parser.is_inline_test_class(node.value):
+                    return None
+                return self.generic_visit(node)
+
+        # Make a deep copy first to avoid modifying the original AST
+        stmt_copy = copy.deepcopy(stmt)
+        remover = ItestRemover(self)
+        new_stmt = remover.visit(stmt_copy)
+
+        # Clean up None values in body/orelse lists for control flow statements
+        if isinstance(new_stmt, (ast.If, ast.While, ast.For, ast.AsyncFor)):
+            if hasattr(new_stmt, "body"):
+                new_stmt.body = [s for s in new_stmt.body if s is not None]
+            if hasattr(new_stmt, "orelse"):
+                new_stmt.orelse = [s for s in new_stmt.orelse if s is not None]
+
+        ast.fix_missing_locations(new_stmt)
+        return new_stmt
+
+    def _trim_block_to_target(self, stmt, target_stmt, block_name):
+        """
+        Create a copy of if/while statement with only statements up to target_stmt included.
+        """
+        import copy
+
+        new_stmt = copy.deepcopy(stmt)
+        block = getattr(new_stmt, block_name, [])
+
+        # Find target index in block
+        try:
+            target_idx = block.index(target_stmt)
+        except ValueError:
+            # Target not found, return original
+            return new_stmt
+
+        # Keep only statements up to and including target
+        setattr(new_stmt, block_name, block[: target_idx + 1])
+
+        # Remove itestdd calls from the trimmed block
+        return self._remove_itestdd_from_stmt(new_stmt)
 
     def collect_inline_test_calls(self, node, inline_test_calls: List[ast.Call]):
         """
@@ -991,7 +1127,7 @@ class ExtractInlineTest(ast.NodeTransformer):
         if len(inline_test_calls) <= 1:
             raise MalformedException("inline test: invalid inline test, requires at least one assertion")
 
-        # "itest()" or "itest('test name')" or "itest('test name', True)" or "itest(parameterized=True)" or "itest(test_name='test name', parameterized=True)"
+        # "itestdd()" or "itestdd('test name')" or "itestdd('test name', True)" or "itestdd(parameterized=True)" or "itestdd(test_name='test name', parameterized=True)"
         constructor_call = inline_test_calls[0]
         if isinstance(constructor_call.func, ast.Name) and constructor_call.func.id == self.class_name_str:
             self.parse_constructor(constructor_call)
@@ -1063,8 +1199,36 @@ class ExtractInlineTest(ast.NodeTransformer):
         if self.inline_module_imported == False:
             return self.generic_visit(node)
         if self.is_inline_test_class(node.value):
-            # get following stmt for TDD mode
-            self.cur_inline_test.previous_stmts.append(self.find_following_stmt(node))
+            # Find the related statement (handles both TDD and traditional modes)
+            related_stmt = self.find_related_stmt(node)
+
+            # Check if this is TDD mode (itestdd before statement) or traditional mode
+            # by comparing positions in the parent's children list
+            is_tdd = False
+            if hasattr(node.parent, "children"):
+                children = node.parent.children
+                node_idx = children.index(node)
+
+                # Check if related_stmt is in children (it might be a condition)
+                if related_stmt in children:
+                    # Regular case: both node and related_stmt are in children
+                    related_idx = children.index(related_stmt)
+                    # In the reversed children list, if node comes before target, it's TDD mode
+                    is_tdd = node_idx > related_idx
+                else:
+                    # Special case: related_stmt is not in children (it's a condition)
+                    # This happens when testing if/while conditions
+                    # In this case, we're always in TDD mode within the if/while block
+                    is_tdd = True
+
+            if is_tdd:
+                # TDD mode: collect all statements from block start to related statement
+                preceding_stmts = self.collect_preceding_stmts_tdd(node, related_stmt)
+                self.cur_inline_test.previous_stmts.extend(preceding_stmts)
+            else:
+                # Traditional mode: only include the related statement
+                self.cur_inline_test.previous_stmts.append(related_stmt)
+
             # parse inline test
             self.parse_inline_test(node.value)
         return self.generic_visit(node)

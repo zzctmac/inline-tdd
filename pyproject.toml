@@ -3,21 +3,18 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/inline"]
+packages = ["src/inline_tdd"]
 
 [project]
-name = "pytest-inline"
+name = "pytest-inline-tdd"
 dynamic = ["version"]
 description = "A pytest plugin for writing inline tests"
 readme = "README.md"
 requires-python = ">=3.7"
 license = { file = "LICENSE" }
-authors = [{ name = "Yu Liu", email = "im.yukiliu@gmail.com" }]
+authors = [{ name = "Zhichao Zhou", email = "zhouzhch@shanghaitech.edu.cn" }]
 maintainers = [
-    { name = "Yu Liu", email = "im.yukiliu@gmail.com" },
-    { name = "Pengyu Nie", email = "prodigy.sov@gmail.com" },
-    { name = "Zachary William Thurston", email = "zwt3@cornell.edu" },
-    { name = "Alan Han", email = "ayh9@cornell.edu" },
+    { name = "Zhichao Zhou", email = "zhouzhch@shanghaitech.edu.cn" },
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -46,10 +43,10 @@ Issues = "https://github.com/pytest-dev/pytest-inline/issues"
 Source = "https://github.com/pytest-dev/pytest-inline"
 
 [project.entry-points.pytest11]
-inline = "inline.plugin"
+inline_tdd = "inline_tdd.plugin"
 
 [tool.hatch.version]
-path = "src/inline/__about__.py"
+path = "src/inline_tdd/__about__.py"
 
 # testing (pytest)
 [tool.pytest.ini_options]
@@ -58,13 +55,13 @@ testpaths = ["tests"]
 
 # code coverage (coverage)
 [tool.coverage.run]
-source_pkgs = ["inline", "tests"]
+source_pkgs = ["inline_tdd", "tests"]
 branch = true
 parallel = true
-omit = ["src/inline/__about__.py"]
+omit = ["src/inline_tdd/__about__.py"]
 
 [tool.coverage.paths]
-inline = ["src/inline", "*/inline/src/inline"]
+inline_tdd = ["src/inline_tdd", "*/inline_tdd/src/inline_tdd"]
 tests = ["tests", "*/inline/tests"]
 
 [tool.coverage.report]
@@ -88,4 +85,4 @@ select = [
 ]
 
 [tool.ruff.lint.isort]
-known-first-party = ["inline"]
+known-first-party = ["inline_tdd"]

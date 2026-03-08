@@ -10,13 +10,13 @@ from pathlib import Path
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent / "src"))
 
-from inline.plugin import ExtractInlineTest
+from inline_tdd.plugin import ExtractInlineTest
 
 test_code = """
-from inline import itest
+from inline_tdd import itestdd
 
 def m(a):
-    itest().given(a, 1).check_eq(a, 2)
+    itestdd().given(a, 1).check_eq(a, 2)
     a = a + 1
 """
 
@@ -41,7 +41,7 @@ try:
         print(f"Line number: {test.lineno}")
         print(f"Previous statements: {len(test.previous_stmts)}")
         if test.previous_stmts:
-            from inline.plugin import ExtractInlineTest as ET
+            from inline_tdd.plugin import ExtractInlineTest as ET
 
             print(f"Source code: {ET.node_to_source_code(test.previous_stmts[0])}")
         print("TDD mode appears to work!")
