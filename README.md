@@ -1,147 +1,210 @@
-# pytest-inline for test-driven development
+# pytest-inline-tdd
 
-![License](https://img.shields.io/github/license/EngineeringSoftware/pytest-inline)
-[![Pypi](https://img.shields.io/pypi/v/pytest-inline)](https://pypi.org/project/pytest-inline/)
-[![Release](https://img.shields.io/github/v/release/EngineeringSoftware/pytest-inline?include_prereleases)](https://github.com/EngineeringSoftware/pytest-inline/releases)
-[![GithubWorkflow](https://img.shields.io/github/actions/workflow/status/EngineeringSoftware/pytest-inline/python-test.yml?branch=main)](https://github.com/EngineeringSoftware/pytest-inline/actions/workflows/python-test.yml)
+A [pytest](http://pytest.org) plugin for **test-driven inline testing** — write tests *before* the code they verify, right inside your production source files.
 
-pytest-inline is a [pytest](<http://pytest.org>) plugin for writing inline tests.
+## Motivation
 
-Inline testing is a new granularity of testing that makes it easier to check individual program statements. An inline test is a statement that allows developers to provide arbitrary inputs and test oracles for checking the immediately preceding statement that is not an inline test.  Unlike unit tests that are usually placed in separate `test_*.py` files, inline tests are written together with the actual production code (and thus are easier to maintain). 
+### The Problem with Traditional Unit Tests
 
-## Table of contents
+Traditional unit tests live in separate `test_*.py` files, isolated from production code. This creates several issues:
 
-1. [Example](#Example)
-2. [Install](#Install)
-3. [Use](#Use)
-4. [API](#API)
-5. [Performance](#Performance)
-6. [Citation](#Citation)
+1. **Distance breeds neglect** — Tests and source code reside in different files (or directories), making it easy to forget updating tests after code changes.
+2. **Coarse granularity** — Unit tests typically target entire functions or methods, lacking focused verification of individual statements within a function.
+3. **Lost context** — Reading test code requires constant switching between test files and source files, making intent harder to follow.
 
-## Example
-The regular expression (Line 7) in this code snippet checks if variable name matches a regex for a pattern that ends in a colon and has at least one digit
-The inline test (Line 8) that we write for target statement (Line 7) consists of three parts:
-- Declaration with itestdd() constructor
-- Assigning inputs with given() function calls
-- Specifying test oracles with check_*() function calls
+### Original pytest-inline (Inline Testing)
+
+[pytest-inline](https://github.com/EngineeringSoftware/pytest-inline) introduced the concept of **inline testing**: placing tests right next to the source code to directly verify a statement's output.
+
+```python
+# Original inline testing: test comes AFTER the statement under test
+def example(a):
+    b = a + 1
+    itest().given(a, 1).check_eq(b, 2)  # Code first, test second
+```
+
+This solves the separation problem, but it is still a **code-first, test-later** workflow.
+
+### pytest-inline-tdd: TDD Mode for Inline Testing
+
+**pytest-inline-tdd** brings **Test-Driven Development (TDD)** to inline testing. The core idea:
+
+> **Write the test (expectation) first, then write the implementation. Tests and code are tightly coupled in the same file, the same function.**
+
+```python
+# TDD inline testing: test comes BEFORE the statement under test
+from inline_tdd import itestdd
+
+def example(a):
+    itestdd().given(a, 1).check_eq(b, 2)  # Test first: expect b=2 when a=1
+    b = a + 1                              # Then implement
+```
+
+### Key Differences from Original pytest-inline
+
+| Feature | pytest-inline | pytest-inline-tdd |
+|---------|-------------|-------------------|
+| Test position | **After** the statement under test | **Before** the statement under test |
+| Workflow | Code first, test later | **Test first, code later (TDD)** |
+| Package name | `inline` | `inline_tdd` |
+| API name | `itest()` | `itestdd()` |
+| Mindset | Verify already-written code | Declare expected behavior, then implement |
+| Compatibility | Supports both pre/post modes | Supports both pre (TDD) and post modes |
+
+## Use Cases
+
+### 1. Statement-Level TDD
+
+Write your expectation for a statement first, then implement it — testing and coding happen together:
 
 ```python
 from inline_tdd import itestdd
 
-def get_assignment_map_from_checkpoint(tvars, init_c):
-    ...
-    for var in tvars:
-        name = var.name
-        m = re.match("^(.*):\\d+$", name)
-        itestdd().given(name, "a:0").check_eq(m, "a")
-        if m is not None:
-            name = m.group(1)
-    ...
+def calculate_discount(price, rate):
+    itestdd().given(price, 100).given(rate, 0.2).check_eq(discount, 20.0)
+    discount = price * rate
+    
+    itestdd().given(price, 100).given(discount, 20.0).check_eq(final, 80.0)
+    final = price - discount
+    
+    return final
+```
+
+### 2. Branch Verification for Complex Control Flow
+
+Independently verify each branch of if/elif/else, for, and while statements:
+
+```python
+def classify(a):
+    itestdd().given(a, 15).check_eq(b, "large")
+    itestdd().given(a, 5).check_eq(b, "medium")
+    itestdd().given(a, -1).check_eq(b, "small")
+    if a > 10:
+        b = "large"
+    elif a > 0:
+        b = "medium"
+    else:
+        b = "small"
+```
+
+### 3. Step-by-Step Data Pipeline Verification
+
+Test each transformation step in place, ensuring every stage of a pipeline behaves as expected:
+
+```python
+import numpy as np
+from inline_tdd import itestdd
+
+def normalize(data):
+    itestdd().given(data, np.array([2.0, 4.0, 6.0])).check_eq(m, 4.0)
+    m = np.mean(data)
+    
+    itestdd().given(data, np.array([2.0, 4.0, 6.0])).given(m, 4.0).check_eq(
+        centered.tolist(), [-2.0, 0.0, 2.0])
+    centered = data - m
+    
+    return centered
+```
+
+### 4. Database Operation Verification
+
+Inline tests work well for verifying the results of SQL queries and operations:
+
+```python
+import sqlite3
+from inline_tdd import itestdd
+
+def count_users(conn):
+    itestdd().check_eq(n, 3)
+    n = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+    return n
+```
+
+### 5. Parameterized Tests
+
+Cover multiple input-output pairs in a single statement:
+
+```python
+def double(a):
+    itestdd(parameterized=True).given(a, [1, 2, 3]).check_eq(b, [2, 4, 6])
+    b = a * 2
 ```
 
 ## Install
 
-Use ``pip install pytest-inline-tdd`` to install this plugin.
+```bash
+pip install pytest-inline-tdd
+```
 
 ## Use
 
-Use ``pytest .`` to run all inline tests in working directory.
+```bash
+# Run all inline tests in the current directory
+pytest .
 
-Use ``pytest {filename}`` to run all inline tests in a Python file.
+# Run inline tests in a specific file
+pytest path/to/file.py
+
+# Run tests with a specific tag
+pytest . --inline-group tag_name
+```
 
 ## API
 
-### Declaration of an inline test
+### Declaring an Inline Test
 
-- itestdd(test_name, parameterized, repeated, tag, disabled, timeout): 
-1. test_name is a string that represents the name of the test. The default value is the file name + line number of the test statement.
+```python
+itestdd(test_name, parameterized, repeated, tag, disabled, timeout)
+```
 
-2. parameterized is a boolean value that indicates whether the test is parameterized. The default value is false.
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `test_name` | str | filename + line number | Name of the test |
+| `parameterized` | bool | False | Whether the test is parameterized |
+| `repeated` | int | 1 | Number of times to repeat the test |
+| `tag` | list | [] | Tags for grouping and filtering |
+| `disabled` | bool | False | Whether the test is disabled |
+| `timeout` | float | -1.0 | Timeout in seconds (-1 for no limit) |
 
-3. repeated is an integer that indicates how many times the test is repeated. The default value is 1.
-        
-4. tag is a string that represents the tag of the test. The default value is an empty string.
-        
-5. disabled is a boolean value that indicates whether the test is disabled. The default value is false.
-        
-6. timeout is an float that represents the amount of time to run the test until it will timeout. The default value is -1.0. If a test times out, it will throw a timeout exception.
+### Preconditions: assume
 
-### Provide any assumptions using an assume call
+```python
+itestdd().assume(condition).given(...).check_eq(...)
+```
 
-- assume(condition):
-        Checks if the condition holds, if the condition does not hold the test will not be run. 
-        
-    If an assume check is added, it must occur before any given statements and only one can be added.
+If `condition` is False, the test is skipped. Must appear before any `given()` calls, and only one `assume()` is allowed per test.
 
-    Below is a toy example. It merely illustrates how a call would look with an assume statement. More complex logic can be used in the assume statment, such as checking a given system version and assuming that the test should only run if the assumed system version is true.
+### Test Inputs: given
 
-    ```python {.line-numbers}
-    def FileHeader(self):
-        dt = self.date_time
-        dosdate = (dt[0] - 1980) << 9 | dt[1] << 5 | dt[2]
-        itestdd().assume(2 < 4).given(dt, (1980, 1, 25, 17, 13, 14)).check_eq(dosdate, 57)
-    ```
+```python
+itestdd().given(variable, value)
+```
 
+Multiple `given()` calls can be chained. Assigns test input values to variables used in the statement under test.
 
+### Test Assertions: check_*
 
-### Provide test inputs using given calls
+| Method | Description |
+|--------|-------------|
+| `check_eq(actual, expected)` | Equal |
+| `check_neq(actual, expected)` | Not equal |
+| `check_true(expr)` | Expression is true |
+| `check_false(expr)` | Expression is false |
+| `check_none(var)` | Value is None |
+| `check_not_none(var)` | Value is not None |
+| `check_same(a, b)` | Same object (`is`) |
+| `check_not_same(a, b)` | Different objects |
+| `fail()` | Force failure |
 
-- given(variable, value): 
-        Assign the value to the variable. 
-
-    Note that any number of given statements can be added. Below is a small example of this functionality. Additionally, the first given call must proceed either an itestdd() declaration or an assume() call if it is added.
-
-    ```python {.line-numbers}
-    def multiple_givens(a, c):
-        b = a + c
-        itestdd().given(a, 2).given(c, a + 1).check_true(b == 5)
-    ```
-
-
-### Specify test oracles using check calls
-- check\_eq(actual\_value, expected\_value): 
-        Checks if the actual value is equal to the expected value.
-
-- check\_neq(actual\_value, expected\_value): 
-        Checks if the actual value is not equal to the expected value.
-
-- check\_true(expr): 
-        Checks if the boolean expression is true.
-
-- check\_false(expr): 
-        Checks if the boolean expression is false.
-
-- check\_none(variable): 
-        Checks if the variable is none.
-
-- check\_not\_none(variable): 
-        Checks if the variable is not none.
-
-- check\_same(actual\_value, expected\_value): 
-        Checks if the actual value and the expected value refer to the same object.
-
-- check\_not\_same(actual\_value, expected\_value): 
-        Checks if the actual value and the expected value refer to different objects.
-
-Only one test oracle can be specified for a given inline test call.
-        
+Only one check assertion is allowed per inline test.
 
 ## Performance
 
-Inline tests are generally fast to run, as each inline test only checks one statement.  Note that inline tests behave as empty function calls when not running tests, and the overhead of having them in production code is negligible.
-
-We have evaluated the performance of pytest-inline on a [dataset](https://github.com/EngineeringSoftware/inlinetest/tree/main/data/examples/python) of 87 inline tests we wrote for 80 statements in 50 examples from 31 open-source projects.  The main findings are summarized below, and please see [our paper][paper-url] for more details.  We performed 3 experiments:
-
-1. Running inline tests in standalone mode.  Each inline test took 0.147s on average.  Most time is spent on startup and parsing the file, which can be aromatized if there are more inline tests per file.  As such, we also duplicated the inline tests for 10, 100, 1000 times, and the average time per inline test dropped to 0.015s, 0.002s, 0.001s.
-
-2. Running inline tests together with unit tests. The average overhead compared to running only the unit tests was only 0.007x.  Even when duplicating the inline tests for 1000 times (such that the total number of inline tests match the total number of unit tests), the average overhead was only 0.088x.
-
-3. Running inline tests together with unit tests, but disable pytest-inline.  This is to simulate the cost of having inline tests in production code.  The overhead was negligible: the number we got when not duplicating inline tests was -0.001x (due to noise), and only raised to 0.019x when duplicating the inline tests for 1000 times.
-
-All APIs for inline testing behave as empty function calls in non-testing mode by always returning a dummy object, for example, check\_eq is defined as: `def check_eq(self, ...): return self`.  This usually incurs negligible overhead as we have observed in our experiments, but note that the cost is paid each time an inline test is encountered during execution, so it may add up if the inline test is in a part of code that will be executed many times (e.g., a loop).
-
+Inline tests are fast — each test verifies only a single statement. In non-testing mode (i.e., normal production execution), all `itestdd()` calls behave as no-op function calls with negligible overhead.
 
 ## Citation
+
+This project builds on the following research:
 
 Title: [Inline Tests](https://dl.acm.org/doi/abs/10.1145/3551349.3556952)
 
