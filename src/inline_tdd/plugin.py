@@ -181,8 +181,41 @@ class InlineTest:
             import_str += ExtractInlineTest.node_to_source_code(n) + "\n"
         return import_str
 
+    def _get_filtered_previous_stmts(self):
+        """Filter out preceding assignment statements whose target variables
+        are already provided by given() calls, so that given() values are not
+        overwritten by earlier computations that may require undefined variables.
+        The last element (the target statement) is always kept."""
+        if not self.given_stmts or len(self.previous_stmts) <= 1:
+            return self.previous_stmts
+
+        given_var_names = set()
+        for stmt in self.given_stmts:
+            if isinstance(stmt, ast.Assign):
+                for target in stmt.targets:
+                    if isinstance(target, ast.Name):
+                        given_var_names.add(target.id)
+
+        if not given_var_names:
+            return self.previous_stmts
+
+        filtered = []
+        for stmt in self.previous_stmts[:-1]:
+            if isinstance(stmt, ast.Assign):
+                if all(isinstance(t, ast.Name) and t.id in given_var_names for t in stmt.targets):
+                    continue
+            elif isinstance(stmt, ast.AugAssign):
+                if isinstance(stmt.target, ast.Name) and stmt.target.id in given_var_names:
+                    continue
+            filtered.append(stmt)
+
+        # Always keep the target statement (last element)
+        filtered.append(self.previous_stmts[-1])
+        return filtered
+
     def to_test(self):
         prefix = "\n"
+        filtered_previous = self._get_filtered_previous_stmts()
 
         if self.prev_stmt_type == PrevStmtType.CondExpr:
             if self.assume_stmts == []:
@@ -192,7 +225,7 @@ class InlineTest:
                 )
             else:
                 body_nodes = (
-                    [n for n in self.given_stmts] + [n for n in self.previous_stmts] + [n for n in self.check_stmts]
+                    [n for n in self.given_stmts] + [n for n in filtered_previous] + [n for n in self.check_stmts]
                 )
                 assume_statement = self.assume_stmts[0]
                 assume_node = self.build_assume_node(assume_statement, body_nodes)
@@ -202,12 +235,12 @@ class InlineTest:
             if self.assume_stmts is None or self.assume_stmts == []:
                 return prefix.join(
                     [ExtractInlineTest.node_to_source_code(n) for n in self.given_stmts]
-                    + [ExtractInlineTest.node_to_source_code(n) for n in self.previous_stmts]
+                    + [ExtractInlineTest.node_to_source_code(n) for n in filtered_previous]
                     + [ExtractInlineTest.node_to_source_code(n) for n in self.check_stmts]
                 )
             else:
                 body_nodes = (
-                    [n for n in self.given_stmts] + [n for n in self.previous_stmts] + [n for n in self.check_stmts]
+                    [n for n in self.given_stmts] + [n for n in filtered_previous] + [n for n in self.check_stmts]
                 )
                 assume_statement = self.assume_stmts[0]
                 assume_node = self.build_assume_node(assume_statement, body_nodes)
