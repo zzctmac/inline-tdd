@@ -279,7 +279,7 @@ def t_exp(a):
     return b
 
 def t_log(a):
-    itestdd().given(a, np.array([1.0, np.e])).check_eq(b.tolist(), [0.0, 1.0])
+    itestdd().given(a, np.array([1.0, np.e])).check_true(np.allclose(b, [0.0, 1.0]))
     b = np.log(a)
     return b
 
