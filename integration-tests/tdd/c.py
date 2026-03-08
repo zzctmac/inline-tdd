@@ -184,3 +184,8 @@ def name_and_tag(a):
 def name_tag_repeated(a):
     itestdd(test_name="triple-check", repeated=3, tag=["core"]).given(a, 4).check_eq(b, 16)
     b = a * 4
+
+T = 12 * 4
+def calculate_with_T(a):
+    itestdd().given(a, 3).check_eq(b, 51)
+    b = T + a
