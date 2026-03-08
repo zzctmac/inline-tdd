@@ -14,7 +14,7 @@ print("-" * 60)
 print("""
 def add(a, b):
     # 先写测试 (TDD风格)
-    itest().given(a, 2).given(b, 3).check_eq(result, 5)
+    itestdd().given(a, 2).given(b, 3).check_eq(result, 5)
     # 再写实现
     result = a + b
     return result
@@ -23,11 +23,11 @@ print()
 print("示例 2: 模块级别测试")
 print("-" * 60)
 print("""
-from inline import itest
+from inline_tdd import itestdd
 
 x = 0
 # 先写测试
-itest().given(x, 5).check_eq(x, 5)
+itestdd().given(x, 5).check_eq(x, 5)
 # 再写实现
 x = x + 1
 """)

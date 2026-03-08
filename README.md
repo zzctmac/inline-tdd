@@ -21,19 +21,19 @@ Inline testing is a new granularity of testing that makes it easier to check ind
 ## Example
 The regular expression (Line 7) in this code snippet checks if variable name matches a regex for a pattern that ends in a colon and has at least one digit
 The inline test (Line 8) that we write for target statement (Line 7) consists of three parts:
-- Declaration with itest() constructor
+- Declaration with itestdd() constructor
 - Assigning inputs with given() function calls
 - Specifying test oracles with check_*() function calls
 
 ```python
-from inline import itest
+from inline_tdd import itestdd
 
 def get_assignment_map_from_checkpoint(tvars, init_c):
     ...
     for var in tvars:
         name = var.name
         m = re.match("^(.*):\\d+$", name)
-        itest().given(name, "a:0").check_eq(m, "a")
+        itestdd().given(name, "a:0").check_eq(m, "a")
         if m is not None:
             name = m.group(1)
     ...
@@ -41,7 +41,7 @@ def get_assignment_map_from_checkpoint(tvars, init_c):
 
 ## Install
 
-Use ``pip install pytest-inline`` to install this plugin.
+Use ``pip install pytest-inline-tdd`` to install this plugin.
 
 ## Use
 
@@ -53,7 +53,7 @@ Use ``pytest {filename}`` to run all inline tests in a Python file.
 
 ### Declaration of an inline test
 
-- itest(test_name, parameterized, repeated, tag, disabled, timeout): 
+- itestdd(test_name, parameterized, repeated, tag, disabled, timeout): 
 1. test_name is a string that represents the name of the test. The default value is the file name + line number of the test statement.
 
 2. parameterized is a boolean value that indicates whether the test is parameterized. The default value is false.
@@ -79,7 +79,7 @@ Use ``pytest {filename}`` to run all inline tests in a Python file.
     def FileHeader(self):
         dt = self.date_time
         dosdate = (dt[0] - 1980) << 9 | dt[1] << 5 | dt[2]
-        itest().assume(2 < 4).given(dt, (1980, 1, 25, 17, 13, 14)).check_eq(dosdate, 57)
+        itestdd().assume(2 < 4).given(dt, (1980, 1, 25, 17, 13, 14)).check_eq(dosdate, 57)
     ```
 
 
@@ -89,12 +89,12 @@ Use ``pytest {filename}`` to run all inline tests in a Python file.
 - given(variable, value): 
         Assign the value to the variable. 
 
-    Note that any number of given statements can be added. Below is a small example of this functionality. Additionally, the first given call must proceed either an itest() declaration or an assume() call if it is added.
+    Note that any number of given statements can be added. Below is a small example of this functionality. Additionally, the first given call must proceed either an itestdd() declaration or an assume() call if it is added.
 
     ```python {.line-numbers}
     def multiple_givens(a, c):
         b = a + c
-        itest().given(a, 2).given(c, a + 1).check_true(b == 5)
+        itestdd().given(a, 2).given(c, a + 1).check_true(b == 5)
     ```
 
 

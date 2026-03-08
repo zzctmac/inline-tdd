@@ -12,15 +12,15 @@ def convert_test_plugin():
     with open(filepath, "r") as f:
         content = f.read()
 
-    # Pattern 1: Simple assignment followed by itest
-    # a = a + 1\n            itest().given(a, 1).check_eq(a, 2)
+    # Pattern 1: Simple assignment followed by itestdd
+    # a = a + 1\n            itestdd().given(a, 1).check_eq(a, 2)
     # ->
-    # itest().given(a, 1).check_eq(a, 2)\n            a = a + 1
+    # itestdd().given(a, 1).check_eq(a, 2)\n            a = a + 1
 
     # Pattern 2: Multi-line blocks
-    # def m(a):\n            a = a + 1\n            itest().given(a, 1).check_eq(a, 2)
+    # def m(a):\n            a = a + 1\n            itestdd().given(a, 1).check_eq(a, 2)
     # ->
-    # def m(a):\n            itest().given(a, 1).check_eq(a, 2)\n            a = a + 1
+    # def m(a):\n            itestdd().given(a, 1).check_eq(a, 2)\n            a = a + 1
 
     lines = content.split("\n")
     result = []
@@ -30,14 +30,14 @@ def convert_test_plugin():
         line = lines[i].rstrip()
         result.append(line)
 
-        # Check if next line is itest() call
+        # Check if next line is itestdd() call
         if i + 1 < len(lines):
             next_line = lines[i + 1].rstrip()
             indent1 = len(line) - len(line.lstrip())
             indent2 = len(next_line) - len(next_line.lstrip())
 
-            # Check if we have: statement + itest pattern
-            if indent2 > indent1 and "itest()" in next_line or "itest(" in next_line:
+            # Check if we have: statement + itestdd pattern
+            if indent2 > indent1 and "itestdd()" in next_line or "itestdd(" in next_line:
                 # Check if current line is a source statement (assignment, if, etc.)
                 stripped = line.lstrip()
                 if (

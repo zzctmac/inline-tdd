@@ -1,7 +1,7 @@
 from ast import List
 
 
-class itest:
+class itestdd:
     def __init__(
         self,
         test_name: str = None,
@@ -126,7 +126,7 @@ class itest:
 
     def assume(self, condition: bool):
         """
-        Executes the test under the assuming the given condition is true. If supplied, must be supplied immediately after itest().
+        Executes the test under the assuming the given condition is true. If supplied, must be supplied immediately after itestdd().
         Can only supply 1 assume statement.
 
         :param condition: a boolean condition

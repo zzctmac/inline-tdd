@@ -22,7 +22,7 @@ def convert_file(filepath):
 
         # Skip imports and initial variable declarations
         if (
-            line.startswith("from inline import")
+            line.startswith("from inline_tdd import")
             or line.startswith("import ")
             or re.match(r"^[a-z] = (0|1)$", line)
             or line.startswith("sleep =")
@@ -36,7 +36,7 @@ def convert_file(filepath):
             # Collect all following test statements
             test_lines = []
             j = i + 1
-            while j < len(lines) and lines[j].strip().startswith("itest("):
+            while j < len(lines) and lines[j].strip().startswith("itestdd("):
                 test_lines.append(lines[j])
                 j += 1
 

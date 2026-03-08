@@ -1,4 +1,4 @@
-from inline.plugin import InlinetestItem, MalformedException, TimeoutException
+from inline_tdd.plugin import InlinetestItem, MalformedException, TimeoutException
 from _pytest.pytester import Pytester
 import pytest
 
@@ -8,9 +8,9 @@ class TestInlinetests:
     def test_inline_parser(self, pytester: Pytester):
         checkfile = pytester.makepyfile(
             """
-        from inline import itest
+        from inline_tdd import itestdd
         def m(a):
-            itest().given(a, 1).check_eq(a, 2)
+            itestdd().given(a, 1).check_eq(a, 2)
             a = a + 1
     """
         )
@@ -23,7 +23,7 @@ class TestInlinetests:
         checkfile = pytester.makepyfile(
             """
         def m(a):
-            itest().given(a, 1).check_eq(a, 2)
+            itestdd().given(a, 1).check_eq(a, 2)
             a = a + 1
     """
         )
@@ -34,11 +34,11 @@ class TestInlinetests:
     def test_inline_detects_imports(self, pytester: Pytester):
         checkfile = pytester.makepyfile(
             """
-        from inline import itest
+        from inline_tdd import itestdd
         import datetime
 
         def m(a):
-            itest().given(a, datetime.timedelta(days=1)).check_eq(b, datetime.timedelta(days=366))
+            itestdd().given(a, datetime.timedelta(days=1)).check_eq(b, datetime.timedelta(days=366))
             b = a + datetime.timedelta(days=365)
     """
         )
@@ -51,11 +51,11 @@ class TestInlinetests:
     def test_inline_detects_import_alias(self, pytester: Pytester):
         checkfile = pytester.makepyfile(
             """
-        from inline import itest
+        from inline_tdd import itestdd
         import datetime as dt
 
         def m(a):
-            itest().given(a, dt.timedelta(days=1)).check_eq(b, dt.timedelta(days=366))
+            itestdd().given(a, dt.timedelta(days=1)).check_eq(b, dt.timedelta(days=366))
             b = a + dt.timedelta(days=365)
     """
         )
@@ -68,7 +68,7 @@ class TestInlinetests:
     def test_inline_detects_from_imports(self, pytester: Pytester):
         checkfile = pytester.makepyfile(
             """
-        from inline import itest
+        from inline_tdd import itestdd
         from enum import Enum
 
         class Choice(Enum):
@@ -76,7 +76,7 @@ class TestInlinetests:
             NO = 1
 
         def m(a):
-            itest().given(a, Choice.YES).check_eq(b, Choice.YES)
+            itestdd().given(a, Choice.YES).check_eq(b, Choice.YES)
             b = a
     """
         )
@@ -89,11 +89,11 @@ class TestInlinetests:
     def test_fail_on_importing_missing_module(self, pytester: Pytester):
         checkfile = pytester.makepyfile(
             """
-        from inline import itest
+        from inline_tdd import itestdd
         from scipy import owijef as st
 
         def m(n, p):
-            itest().given(n, 100).given(p, 0.5).check_eq(b.mean(), n * p)
+            itestdd().given(n, 100).given(p, 0.5).check_eq(b.mean(), n * p)
             b = st.binom(n, p)
     """
         )
@@ -104,9 +104,9 @@ class TestInlinetests:
     def test_inline_malformed_given(self, pytester: Pytester):
         checkfile = pytester.makepyfile(
             """
-        from inline import itest
+        from inline_tdd import itestdd
         def m(a):
-            itest().given(a).check_eq(a, 2)
+            itestdd().given(a).check_eq(a, 2)
             a = a + 1
     """
         )
@@ -118,9 +118,9 @@ class TestInlinetests:
     def test_inline_malformed_value(self, pytester: Pytester):
         checkfile = pytester.makepyfile(
             """
-        from inline import itest
+        from inline_tdd import itestdd
         def m(a):
-            itest().given(a).check_eq(2)
+            itestdd().given(a).check_eq(2)
             a = a + 1
     """
         )
@@ -132,9 +132,9 @@ class TestInlinetests:
     def test_inline_malformed_check_eq(self, pytester: Pytester):
         checkfile = pytester.makepyfile(
             """
-        from inline import itest
+        from inline_tdd import itestdd
         def m(a):
-            itest().given(a, 1).check_eq(a)
+            itestdd().given(a, 1).check_eq(a)
             a = a + 1
     """
         )
@@ -146,9 +146,9 @@ class TestInlinetests:
     def test_inline_malformed_check_eq_more_argument(self, pytester: Pytester):
         checkfile = pytester.makepyfile(
             """
-        from inline import itest
+        from inline_tdd import itestdd
         def m(a):
-            itest().given(a, 1).check_eq(a, 2, 3)
+            itestdd().given(a, 1).check_eq(a, 2, 3)
             a = a + 1
     """
         )
@@ -161,9 +161,9 @@ class TestInlinetests:
         # [Name(id='a', ctx=Load()), Constant(value=1)]
         checkfile = pytester.makepyfile(
             """
-        from inline import itest
+        from inline_tdd import itestdd
         def m(a):
-            itest().given(a, 1).check_true(a = 2)
+            itestdd().given(a, 1).check_true(a = 2)
             a = a + 1
     """
         )
@@ -175,9 +175,9 @@ class TestInlinetests:
     # def test_if(self, pytester: Pytester):
     #     checkfile = pytester.makepyfile(
     #         """
-    #     from inline import itest
+    #     from inline_tdd import itestdd
     #     def m(a):
-    #             itest().given(a, 2).check_true(Group(0))
+    #             itestdd().given(a, 2).check_true(Group(0))
     #             a = a + 1
     # """
     #     )
@@ -190,9 +190,9 @@ class TestInlinetests:
     def test_check_eq_parameterized_tests(self, pytester: Pytester):
         checkfile = pytester.makepyfile(
             """
-        from inline import itest
+        from inline_tdd import itestdd
         def m(a):
-            itest(parameterized=True).given(a, [2, 3]).check_eq(a, [3, 4])
+            itestdd(parameterized=True).given(a, [2, 3]).check_eq(a, [3, 4])
             a = a + 1
     """
         )
@@ -205,9 +205,9 @@ class TestInlinetests:
     def test_malformed_check_eq_parameterized_tests(self, pytester: Pytester):
         checkfile = pytester.makepyfile(
             """
-        from inline import itest
+        from inline_tdd import itestdd
         def m(a):
-            itest(parameterized=True).given(a, [2, 3]).check_eq(a, 3)
+            itestdd(parameterized=True).given(a, [2, 3]).check_eq(a, 3)
             a = a + 1
     """
         )
@@ -219,9 +219,9 @@ class TestInlinetests:
     def test_malformed_given_parameterized_tests(self, pytester: Pytester):
         checkfile = pytester.makepyfile(
             """
-        from inline import itest
+        from inline_tdd import itestdd
         def m(a):
-            itest(parameterized=True).given(a, [2]).check_eq(a, [3, 4])
+            itestdd(parameterized=True).given(a, [2]).check_eq(a, [3, 4])
             a = a + 1
     """
         )
@@ -233,9 +233,9 @@ class TestInlinetests:
     def test_check_true_parameterized_tests(self, pytester: Pytester):
         checkfile = pytester.makepyfile(
             """
-        from inline import itest
+        from inline_tdd import itestdd
         def m(a):
-            itest(parameterized=True).given(a, [2, 3]).check_true([a == 3, a == 4])
+            itestdd(parameterized=True).given(a, [2, 3]).check_true([a == 3, a == 4])
             a = a + 1
     """
         )
@@ -248,9 +248,9 @@ class TestInlinetests:
     def test_check_false_parameterized_tests(self, pytester: Pytester):
         checkfile = pytester.makepyfile(
             """
-        from inline import itest
+        from inline_tdd import itestdd
         def m(a):
-            itest(parameterized=True).given(a, [2, 3]).check_false([a == 1, a == 2])
+            itestdd(parameterized=True).given(a, [2, 3]).check_false([a == 1, a == 2])
             a = a + 1
     """
         )
@@ -263,9 +263,9 @@ class TestInlinetests:
     def test_check_non_positive_repeated_tests(self, pytester: Pytester):
         checkfile = pytester.makepyfile(
             """
-        from inline import itest
+        from inline_tdd import itestdd
         def m(a):
-            itest(repeated = -1).given(a, 1).check_eq(a, 2)
+            itestdd(repeated = -1).given(a, 1).check_eq(a, 2)
             a = a + 1
     """
         )
@@ -276,9 +276,9 @@ class TestInlinetests:
     def test_check_float_repeated_tests(self, pytester: Pytester):
         checkfile = pytester.makepyfile(
             """
-        from inline import itest
+        from inline_tdd import itestdd
         def m(a):
-            itest(parameterized=True).given(a, [2, 3]).check_false([a == 1, a == 2])
+            itestdd(parameterized=True).given(a, [2, 3]).check_false([a == 1, a == 2])
             a = a + 1
     """
         )
@@ -289,9 +289,9 @@ class TestInlinetests:
     def test_check_repeated_tests(self, pytester: Pytester):
         checkfile = pytester.makepyfile(
             """
-        from inline import itest
+        from inline_tdd import itestdd
         def m(a):
-            itest(repeated = 2).given(a, 1).check_eq(a, 2)
+            itestdd(repeated = 2).given(a, 1).check_eq(a, 2)
             a = a + 1
     """
         )
@@ -302,11 +302,11 @@ class TestInlinetests:
     def test_check_group_tests(self, pytester: Pytester):
         checkfile = pytester.makepyfile(
             """
-        from inline import itest
+        from inline_tdd import itestdd
         def m(a):
-            itest(tag = ["add"]).given(a, 1).check_eq(a, 2)
+            itestdd(tag = ["add"]).given(a, 1).check_eq(a, 2)
             a = a + 1
-            itest(tag = ["minus"]).given(a, 1).check_eq(a, 0)
+            itestdd(tag = ["minus"]).given(a, 1).check_eq(a, 0)
             a = a - 1
     """
         )
@@ -318,11 +318,11 @@ class TestInlinetests:
     def test_check_multiple_group_tests(self, pytester: Pytester):
         checkfile = pytester.makepyfile(
             """
-        from inline import itest
+        from inline_tdd import itestdd
         def m(a):
-            itest(tag = ["add"]).given(a, 1).check_eq(a, 2)
+            itestdd(tag = ["add"]).given(a, 1).check_eq(a, 2)
             a = a + 1
-            itest(tag = ["minus"]).given(a, 1).check_eq(a, 0)
+            itestdd(tag = ["minus"]).given(a, 1).check_eq(a, 0)
             a = a - 1
     """
         )
@@ -334,11 +334,11 @@ class TestInlinetests:
     def test_check_incorrect_group_tests(self, pytester: Pytester):
         checkfile = pytester.makepyfile(
             """
-        from inline import itest
+        from inline_tdd import itestdd
         def m(a):
-            itest(tag = ["add"]).given(a, 1).check_eq(a, 3)
+            itestdd(tag = ["add"]).given(a, 1).check_eq(a, 3)
             a = a + 1
-            itest(tag = ["minus"]).given(a, 1).check_eq(a, 0)
+            itestdd(tag = ["minus"]).given(a, 1).check_eq(a, 0)
             a = a - 1
     """
         )
@@ -352,11 +352,11 @@ class TestInlinetests:
     def test_check_disabled_tests(self, pytester: Pytester):
         checkfile = pytester.makepyfile(
             """
-        from inline import itest
+        from inline_tdd import itestdd
         def m(a):
-            itest(disabled=True).given(a, 1).check_eq(a, 2)
+            itestdd(disabled=True).given(a, 1).check_eq(a, 2)
             a = a + 1
-            itest().given(a, 1).check_eq(a, 0)
+            itestdd().given(a, 1).check_eq(a, 0)
             a = a - 1
     """
         )
@@ -367,11 +367,11 @@ class TestInlinetests:
     def test_check_disabled_value_tests(self, pytester: Pytester):
         checkfile = pytester.makepyfile(
             """
-        from inline import itest
+        from inline_tdd import itestdd
         def m(a):
-            itest(disabled=True).given(a, 1).check_eq(a, 3)
+            itestdd(disabled=True).given(a, 1).check_eq(a, 3)
             a = a + 1
-            itest().given(a, 1).check_eq(a, 0)
+            itestdd().given(a, 1).check_eq(a, 0)
             a = a - 1
     """
         )
@@ -382,9 +382,9 @@ class TestInlinetests:
     def test_multiple_given(self, pytester: Pytester):
         checkfile = pytester.makepyfile(
             """
-        from inline import itest
+        from inline_tdd import itestdd
         def m(a, c):
-            itest().given(a, 2).given(c, a + 1).check_true(b == 5)
+            itestdd().given(a, 2).given(c, a + 1).check_true(b == 5)
             b = a + c
     """
         )
@@ -397,9 +397,9 @@ class TestInlinetests:
     def test_multiple_malformed_given(self, pytester: Pytester):
         checkfile = pytester.makepyfile(
             """
-        from inline import itest
+        from inline_tdd import itestdd
         def m(a, c):
-            itest().given(a, 2).given(c).check_true(b == 5)
+            itestdd().given(a, 2).given(c).check_true(b == 5)
             b = a + c
     """
         )
@@ -411,9 +411,9 @@ class TestInlinetests:
     def test_list_append(self, pytester: Pytester):
         checkfile = pytester.makepyfile(
             """
-        from inline import itest
+        from inline_tdd import itestdd
         def m(i):
-            itest().given(i, ["pineapple", "pear"]).given(h, ["apple", "banana", "orange"]).check_eq(j, ["apple", "banana", "orange", "pineapple", "pear"])
+            itestdd().given(i, ["pineapple", "pear"]).given(h, ["apple", "banana", "orange"]).check_eq(j, ["apple", "banana", "orange", "pineapple", "pear"])
             j = h + i
     """
         )
@@ -426,10 +426,10 @@ class TestInlinetests:
     def test_list_addition(self, pytester: Pytester):
         checkfile = pytester.makepyfile(
             """
-        from inline import itest
+        from inline_tdd import itestdd
         def m(a):
             a = []
-            itest().given(a, [1,2,3,2,1]).check_true(b == [3,4,5,4,3])
+            itestdd().given(a, [1,2,3,2,1]).check_true(b == [3,4,5,4,3])
             b = [x + 2 for x in a]
     """
         )
@@ -441,9 +441,9 @@ class TestInlinetests:
         checkfile = pytester.makepyfile(
             """
         import re
-        from inline import itest
+        from inline_tdd import itestdd
         def m(x):
-            itest().given(x, "hel1o").check_eq(match.start(), 3)
+            itestdd().given(x, "hel1o").check_eq(match.start(), 3)
             match = re.search("[0123]", x)
 
     """
@@ -457,9 +457,9 @@ class TestInlinetests:
     def test_multivariate(self, pytester: Pytester):
         checkfile = pytester.makepyfile(
             """
-        from inline import itest
+        from inline_tdd import itestdd
         def m(a, b, c, d):
-            itest().given(a, 3).given(b, 4).given(c,5).given(d,6).check_true(e == 17)
+            itestdd().given(a, 3).given(b, 4).given(c,5).given(d,6).check_true(e == 17)
             e = a + b * c - d
     """
         )
@@ -472,10 +472,10 @@ class TestInlinetests:
     def test_time(self, pytester: Pytester):
         checkfile = pytester.makepyfile(
             """
-        from inline import itest
+        from inline_tdd import itestdd
         import time
         def m(a):
-            itest(timeout=1).given(a, loop(3)).check_eq(a,4.0)
+            itestdd(timeout=1).given(a, loop(3)).check_eq(a,4.0)
             a = a + 1
 
         def loop(b):
@@ -491,11 +491,11 @@ class TestInlinetests:
     def test_check_order_tests(self, pytester: Pytester):
         checkfile = pytester.makepyfile(
             """
-        from inline import itest
+        from inline_tdd import itestdd
         def m(a):
-            itest("1", tag = ["add"]).given(a, 1).check_eq(a, 2)
+            itestdd("1", tag = ["add"]).given(a, 1).check_eq(a, 2)
             a = a + 1
-            itest("2", tag = ["minus"]).given(a, 1).check_eq(a, 0)
+            itestdd("2", tag = ["minus"]).given(a, 1).check_eq(a, 0)
             a = a - 1
     """
         )
@@ -509,13 +509,13 @@ class TestInlinetests:
     def test_check_order_and_nonorder_tests(self, pytester: Pytester):
         checkfile = pytester.makepyfile(
             """
-        from inline import itest
+        from inline_tdd import itestdd
         def m(a):
-            itest("1", tag = ["add"]).given(a, 1).check_eq(a, 2)
+            itestdd("1", tag = ["add"]).given(a, 1).check_eq(a, 2)
             a = a + 1
-            itest("2").given(a, 1).check_eq(a, 3)
+            itestdd("2").given(a, 1).check_eq(a, 3)
             a = a + 2
-            itest("3", tag = ["minus"]).given(a, 1).check_eq(a, 0)
+            itestdd("3", tag = ["minus"]).given(a, 1).check_eq(a, 0)
             a = a - 1
     """
         )
@@ -531,15 +531,15 @@ class TestInlinetests:
     def test_check_same_tag_order_tests(self, pytester: Pytester):
         checkfile = pytester.makepyfile(
             """
-        from inline import itest
+        from inline_tdd import itestdd
         def m(a):
-            itest("1", tag = ["add"]).given(a, 1).check_eq(a, 2)
+            itestdd("1", tag = ["add"]).given(a, 1).check_eq(a, 2)
             a = a + 1
-            itest("2", tag = ["add"]).given(a, 1).check_eq(a, 3)
+            itestdd("2", tag = ["add"]).given(a, 1).check_eq(a, 3)
             a = a + 2
-            itest("3", tag = ["minus"]).given(a, 1).check_eq(a, 0)
+            itestdd("3", tag = ["minus"]).given(a, 1).check_eq(a, 0)
             a = a - 1
-            itest("4", tag = ["add"]).given(a, 1).check_eq(a, 3)
+            itestdd("4", tag = ["add"]).given(a, 1).check_eq(a, 3)
             a = a + 2
     """
         )
@@ -556,11 +556,11 @@ class TestInlinetests:
     def test_check_group_and_order_tests(self, pytester: Pytester):
         checkfile = pytester.makepyfile(
             """
-        from inline import itest
+        from inline_tdd import itestdd
         def m(a):
-            itest(tag = ["add"]).given(a, 1).check_eq(a, 2)
+            itestdd(tag = ["add"]).given(a, 1).check_eq(a, 2)
             a = a + 1
-            itest(tag = ["minus"]).given(a, 2).check_eq(a, 1)
+            itestdd(tag = ["minus"]).given(a, 2).check_eq(a, 1)
             a = a - 1
     """
         )
@@ -576,9 +576,9 @@ class TestInlinetests:
     def test_assert_neq(self, pytester: Pytester):
         checkfile = pytester.makepyfile(
             """
-        from inline import itest
+        from inline_tdd import itestdd
         def m(a):
-            itest().given(a, 1).check_neq(a, 1)
+            itestdd().given(a, 1).check_neq(a, 1)
             a = a - 1
     """
         )
@@ -591,9 +591,9 @@ class TestInlinetests:
     def test_assert_none(self, pytester: Pytester):
         checkfile = pytester.makepyfile(
             """
-        from inline import itest
+        from inline_tdd import itestdd
         def m(a):
-            itest().given(a, 1).check_none(a)
+            itestdd().given(a, 1).check_none(a)
             a = None
     """
         )
@@ -606,9 +606,9 @@ class TestInlinetests:
     def test_assert_not_none(self, pytester: Pytester):
         checkfile = pytester.makepyfile(
             """
-        from inline import itest
+        from inline_tdd import itestdd
         def m(a):
-            itest().given(a, 1).check_not_none(a)
+            itestdd().given(a, 1).check_not_none(a)
             a = 3
     """
         )
@@ -621,9 +621,9 @@ class TestInlinetests:
     def test_assert_same(self, pytester: Pytester):
         checkfile = pytester.makepyfile(
             """
-        from inline import itest
+        from inline_tdd import itestdd
         def m(a):
-            itest().given(a, "Hi").check_same(a,b)
+            itestdd().given(a, "Hi").check_same(a,b)
             b = a
     """
         )
@@ -636,9 +636,9 @@ class TestInlinetests:
     def test_assert_not_same(self, pytester: Pytester):
         checkfile = pytester.makepyfile(
             """
-        from inline import itest
+        from inline_tdd import itestdd
         def m(a):
-            itest().given(a, "Hi").check_not_same(a,b)
+            itestdd().given(a, "Hi").check_not_same(a,b)
             b = a + "a"
     """
         )
@@ -651,9 +651,9 @@ class TestInlinetests:
     def test_fail_statement(self, pytester: Pytester):
         checkfile = pytester.makepyfile(
             """
-        from inline import itest
+        from inline_tdd import itestdd
         def m(a):
-            itest().given(a, "Hi").fail()
+            itestdd().given(a, "Hi").fail()
             b = a + "a"
     """
         )
@@ -664,9 +664,9 @@ class TestInlinetests:
     def test_assume_correct(self, pytester: Pytester):
         checkfile = pytester.makepyfile(
             """
-        from inline import itest
+        from inline_tdd import itestdd
         def m(a):
-            itest().assume(True).given(a, 1).check_not_none(a)
+            itestdd().assume(True).given(a, 1).check_not_none(a)
             a = 3
     """
         )
@@ -679,13 +679,13 @@ class TestInlinetests:
     def test_assume_correct_with_timeout(self, pytester: Pytester):
         checkfile = pytester.makepyfile(
             """
-        from inline import itest
+        from inline_tdd import itestdd
         import time
         import sys
         print(sys.version)
 
         def m(a):
-            itest(timeout=1).assume(True).given(a, loop(3)).check_eq(a,1)
+            itestdd(timeout=1).assume(True).given(a, loop(3)).check_eq(a,1)
             a = -3
 
         def loop(b):
@@ -703,13 +703,13 @@ class TestInlinetests:
     def test_assume_incorrect_with_timeout(self, pytester: Pytester):
         checkfile = pytester.makepyfile(
             """
-        from inline import itest
+        from inline_tdd import itestdd
         import time
         import sys
         print(sys.version)
 
         def m(a):
-            itest(timeout=1).assume(False).given(a, loop(3)).check_eq(a,1)
+            itestdd(timeout=1).assume(False).given(a, loop(3)).check_eq(a,1)
             a = -3
 
         def loop(b):
@@ -727,9 +727,9 @@ class TestInlinetests:
     def test_unit_test_disable_inline_test_enable(self, pytester: Pytester):
         checkfile = pytester.makepyfile(
             """
-        from inline import itest
+        from inline_tdd import itestdd
         def test_mtd(a, c):
-            itest().given(a, 2).given(c, a + 1).check_true(b == 5)
+            itestdd().given(a, 2).given(c, a + 1).check_true(b == 5)
             b = a + c
             assert False
     """
@@ -744,11 +744,11 @@ class TestInlinetests:
     def test_unit_test_enable_inline_test_disable(self, pytester: Pytester):
         checkfile = pytester.makepyfile(
             """
-        from inline import itest
+        from inline_tdd import itestdd
         def test_mtd():
             a = 1
             c = 1
-            itest().given(a, 2).given(c, a + 1).check_true(b == 5)
+            itestdd().given(a, 2).given(c, a + 1).check_true(b == 5)
             b = a + c
             assert False
     """
