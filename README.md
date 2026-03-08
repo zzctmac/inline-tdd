@@ -1,4 +1,4 @@
-# pytest-inline
+# pytest-inline for test-driven development
 
 ![License](https://img.shields.io/github/license/EngineeringSoftware/pytest-inline)
 [![Pypi](https://img.shields.io/pypi/v/pytest-inline)](https://pypi.org/project/pytest-inline/)

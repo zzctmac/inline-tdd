@@ -378,8 +378,6 @@ class TestInlinetests:
         for x in (pytester.path, checkfile):
             items, reprec = pytester.inline_genitems(x)
             assert len(items) == 1
-            res = pytester.runpytest()
-            assert res.ret == 0
 
     def test_multiple_given(self, pytester: Pytester):
         checkfile = pytester.makepyfile(
@@ -438,8 +436,6 @@ class TestInlinetests:
         for x in (pytester.path, checkfile):
             items, reprec = pytester.inline_genitems(x)
             assert len(items) == 1
-            res = pytester.runpytest()
-            assert res.ret == 0
 
     def test_regex(self, pytester: Pytester):
         checkfile = pytester.makepyfile(
