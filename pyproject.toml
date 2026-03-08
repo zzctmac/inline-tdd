@@ -10,7 +10,7 @@ name = "pytest-inline-tdd"
 dynamic = ["version"]
 description = "A pytest plugin for writing inline tests"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.9"
 license = { file = "LICENSE" }
 authors = [{ name = "Zhichao Zhou", email = "zhouzhch@shanghaitech.edu.cn" }]
 maintainers = [
