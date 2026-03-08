@@ -1,0 +1,859 @@
+
+def quicksort(arr, low=None, high=None):
+    if low is None:
+        low = 0
+        high = len(arr) - 1
+    if low < high:
+        pi = _partition(arr, low, high)
+        quicksort(arr, low, pi - 1)
+        quicksort(arr, pi + 1, high)
+    return arr
+
+
+def qs_integration():
+    itestdd().check_eq(r, [1, 1, 2, 3, 4, 5, 9])
+    r = quicksort([3, 1, 4, 1, 5, 9, 2])
+
+    itestdd().check_eq(r2, [-3, -1, 0, 2, 5])
+    r2 = quicksort([5, -1, 0, 2, -3])
+
+    itestdd().check_eq(r3, [1, 1, 1])
+    r3 = quicksort([1, 1, 1])
+
+    itestdd().check_eq(r4, [42])
+    r4 = quicksort([42])
+
+    itestdd().check_eq(r5, [])
+    r5 = quicksort([])
+
+
+# ============================================================
+# LRU Cache
+# ============================================================
+
+class LRUCache:
+    def __init__(self, capacity):
+        self.capacity = capacity
+        self.cache = {}
+        self.order = []
+
+    def get(self, key):
+        if key not in self.cache:
+            return -1
+        self.order.remove(key)
+        self.order.append(key)
+        return self.cache[key]
+
+    def put(self, key, value):
+        if key in self.cache:
+            self.order.remove(key)
+        elif len(self.cache) >= self.capacity:
+            oldest = self.order.pop(0)
+            del self.cache[oldest]
+        self.cache[key] = value
+        self.order.append(key)
+
+    def size(self):
+        return len(self.cache)
+
+
+def lru_basic():
+    itestdd().check_eq(c.capacity, 3)
+    c = LRUCache(3)
+
+    c.put("a", 1)
+    c.put("b", 2)
+    c.put("c", 3)
+
+    itestdd().check_eq(v, 1)
+    v = c.get("a")
+
+    itestdd().check_eq(s, 3)
+    s = c.size()
+
+    # Now "a" was recently used, so "b" is oldest
+    c.put("d", 4)  # evicts "b"
+
+    itestdd().check_eq(gone, -1)
+    gone = c.get("b")
+
+    itestdd().check_eq(still, 3)
+    still = c.get("c")
+
+
+def lru_overwrite():
+    c = LRUCache(2)
+    c.put("x", 10)
+    c.put("y", 20)
+
+    # Overwrite "x"
+    c.put("x", 100)
+
+    itestdd().check_eq(v, 100)
+    v = c.get("x")
+
+    itestdd().check_eq(s, 2)
+    s = c.size()
+
+    # "y" is now oldest, adding "z" should evict "y"
+    c.put("z", 30)
+
+    itestdd().check_eq(evicted, -1)
+    evicted = c.get("y")
+
+
+# ============================================================
+# Binary Search
+# ============================================================
+
+def bsearch(arr, target):
+    low = 0
+    high = len(arr) - 1
+    while low <= high:
+        itestdd().given(low, 0).given(high, 4).check_eq(mid, 2)
+        mid = (low + high) // 2
+        if arr[mid] == target:
+            return mid
+        elif arr[mid] < target:
+            low = mid + 1
+        else:
+            high = mid - 1
+    return -1
+
+
+def bsearch_tests():
+    itestdd().check_eq(r, 2)
+    r = bsearch([1, 3, 5, 7, 9], 5)
+
+    itestdd().check_eq(r2, 0)
+    r2 = bsearch([10, 20, 30], 10)
+
+    itestdd().check_eq(r3, 2)
+    r3 = bsearch([10, 20, 30], 30)
+
+    itestdd().check_eq(r4, -1)
+    r4 = bsearch([1, 2, 3], 4)
+
+    itestdd().check_eq(r5, -1)
+    r5 = bsearch([], 1)
+
+
+# ============================================================
+# Merge Sort
+# ============================================================
+
+def _merge(left, right):
+    itestdd().given(left, [1, 3, 5]).given(right, [2, 4, 6]).check_eq(result, [1, 2, 3, 4, 5, 6])
+    result = []
+    i = j = 0
+    while i < len(left) and j < len(right):
+        if left[i] <= right[j]:
+            result.append(left[i])
+            i += 1
+        else:
+            result.append(right[j])
+            j += 1
+    result.extend(left[i:])
+    result.extend(right[j:])
+    return result
+
+
+def merge_sort(arr):
+    if len(arr) <= 1:
+        return arr
+    mid = len(arr) // 2
+    left = merge_sort(arr[:mid])
+    right = merge_sort(arr[mid:])
+    return _merge(left, right)
+
+
+def msort_tests():
+    itestdd().check_eq(r, [1, 2, 3, 4, 5, 6])
+    r = merge_sort([6, 5, 4, 3, 2, 1])
+
+    itestdd().check_eq(r2, [-5, -2, 0, 3, 7])
+    r2 = merge_sort([3, -2, 7, 0, -5])
+
+    itestdd().check_eq(r3, [1, 1, 2, 2, 3])
+    r3 = merge_sort([2, 1, 3, 1, 2])
+
+
+# ============================================================
+# Min Stack
+# ============================================================
+
+class MinStack:
+    def __init__(self):
+        self.stack = []
+        self.min_stack = []
+
+    def push(self, val):
+        self.stack.append(val)
+        if not self.min_stack or val <= self.min_stack[-1]:
+            self.min_stack.append(val)
+
+    def pop(self):
+        val = self.stack.pop()
+        if val == self.min_stack[-1]:
+            self.min_stack.pop()
+        return val
+
+    def get_min(self):
+        return self.min_stack[-1]
+
+    def top(self):
+        return self.stack[-1]
+
+
+def minstack_tests():
+    s = MinStack()
+    s.push(3)
+    s.push(5)
+    s.push(2)
+    s.push(1)
+
+    itestdd().check_eq(m1, 1)
+    m1 = s.get_min()
+
+    itestdd().check_eq(t1, 1)
+    t1 = s.top()
+
+    s.pop()
+
+    itestdd().check_eq(m2, 2)
+    m2 = s.get_min()
+
+    s.pop()
+
+    itestdd().check_eq(m3, 3)
+    m3 = s.get_min()
+
+    itestdd().check_eq(t2, 5)
+    t2 = s.top()
+
+    s.pop()
+
+    itestdd().check_eq(m4, 3)
+    m4 = s.get_min()
+
+
+# ============================================================
+# Fibonacci (memoized)
+# ============================================================
+
+def fib(n, memo=None):
+    if memo is None:
+        memo = {}
+    if n in memo:
+        return memo[n]
+    if n <= 1:
+        return n
+    result = fib(n - 1, memo) + fib(n - 2, memo)
+    memo[n] = result
+    return result
+
+
+def fib_tests():
+    itestdd().check_eq(f0, 0)
+    f0 = fib(0)
+
+    itestdd().check_eq(f1, 1)
+    f1 = fib(1)
+
+    itestdd().check_eq(f10, 55)
+    f10 = fib(10)
+
+    itestdd().check_eq(f20, 6765)
+    f20 = fib(20)
+
+    itestdd().check_eq(f30, 832040)
+    f30 = fib(30)
+
+
+# ============================================================
+# Trie (Prefix Tree)
+# ============================================================
+
+class TrieNode:
+    def __init__(self):
+        self.children = {}
+        self.is_end = False
+
+
+class Trie:
+    def __init__(self):
+        self.root = TrieNode()
+
+    def insert(self, word):
+        node = self.root
+        for ch in word:
+            if ch not in node.children:
+                node.children[ch] = TrieNode()
+            node = node.children[ch]
+        node.is_end = True
+
+    def search(self, word):
+        node = self.root
+        for ch in word:
+            if ch not in node.children:
+                return False
+            node = node.children[ch]
+        return node.is_end
+
+    def starts_with(self, prefix):
+        node = self.root
+        for ch in prefix:
+            if ch not in node.children:
+                return False
+            node = node.children[ch]
+        return True
+
+    def count_words(self):
+        count = [0]
+        def _dfs(node):
+            if node.is_end:
+                count[0] += 1
+            for child in node.children.values():
+                _dfs(child)
+        _dfs(self.root)
+        return count[0]
+
+
+def trie_tests():
+    t = Trie()
+    t.insert("apple")
+    t.insert("app")
+    t.insert("application")
+    t.insert("banana")
+    t.insert("band")
+
+    itestdd().check_true(r1)
+    r1 = t.search("apple")
+
+    itestdd().check_true(r2)
+    r2 = t.search("app")
+
+    itestdd().check_false(r3)
+    r3 = t.search("ap")
+
+    itestdd().check_false(r4)
+    r4 = t.search("apples")
+
+    itestdd().check_true(r5)
+    r5 = t.starts_with("ap")
+
+    itestdd().check_true(r6)
+    r6 = t.starts_with("ban")
+
+    itestdd().check_false(r7)
+    r7 = t.starts_with("cat")
+
+    itestdd().check_eq(wc, 5)
+    wc = t.count_words()
+
+
+# ============================================================
+# Graph BFS / DFS
+# ============================================================
+
+def bfs(graph, start):
+    visited = []
+    queue = deque([start])
+    seen = {start}
+    while queue:
+        node = queue.popleft()
+        visited.append(node)
+        for neighbor in graph.get(node, []):
+            if neighbor not in seen:
+                seen.add(neighbor)
+                queue.append(neighbor)
+    return visited
+
+
+def dfs(graph, start, visited=None):
+    if visited is None:
+        visited = []
+    visited.append(start)
+    for neighbor in graph.get(start, []):
+        if neighbor not in visited:
+            dfs(graph, neighbor, visited)
+    return visited
+
+
+def graph_tests():
+    graph = {
+        "A": ["B", "C"],
+        "B": ["A", "D", "E"],
+        "C": ["A", "F"],
+        "D": ["B"],
+        "E": ["B", "F"],
+        "F": ["C", "E"],
+    }
+
+    itestdd().check_eq(bfs_r, ["A", "B", "C", "D", "E", "F"])
+    bfs_r = bfs(graph, "A")
+
+    itestdd().check_eq(dfs_r, ["A", "B", "D", "E", "F", "C"])
+    dfs_r = dfs(graph, "A")
+
+    graph2 = {"X": ["Y"], "Y": ["X"], "Z": []}
+
+    itestdd().check_eq(bfs_r2, ["X", "Y"])
+    bfs_r2 = bfs(graph2, "X")
+
+    itestdd().check_eq(bfs_r3, ["Z"])
+    bfs_r3 = bfs(graph2, "Z")
+
+
+# ============================================================
+# Matrix operations
+# ============================================================
+
+def mat_mul(a, b):
+    rows_a = len(a)
+    cols_b = len(b[0])
+    cols_a = len(a[0])
+    result = [[0] * cols_b for _ in range(rows_a)]
+    for i in range(rows_a):
+        for j in range(cols_b):
+            for k in range(cols_a):
+                result[i][j] += a[i][k] * b[k][j]
+    return result
+
+
+def mat_transpose(m):
+    return [list(row) for row in zip(*m)]
+
+
+def mat_tests():
+    itestdd().check_eq(r, [[19, 22], [43, 50]])
+    r = mat_mul([[1, 2], [3, 4]], [[5, 6], [7, 8]])
+
+    itestdd().check_eq(ident, [[1, 0], [0, 1]])
+    ident = mat_mul([[1, 0], [0, 1]], [[1, 0], [0, 1]])
+
+    itestdd().check_eq(r3, [[58, 64], [139, 154]])
+    r3 = mat_mul([[1, 2, 3], [4, 5, 6]], [[1, 2], [3, 4], [5, 6]])
+
+    itestdd().check_eq(tr, [[1, 3], [2, 4]])
+    tr = mat_transpose([[1, 2], [3, 4]])
+
+    itestdd().check_eq(tr2, [[1, 4], [2, 5], [3, 6]])
+    tr2 = mat_transpose([[1, 2, 3], [4, 5, 6]])
+
+
+# ============================================================
+# Linked List
+# ============================================================
+
+class ListNode:
+    def __init__(self, val=0, nxt=None):
+        self.val = val
+        self.next = nxt
+
+    def to_list(self):
+        result = []
+        node = self
+        while node:
+            result.append(node.val)
+            node = node.next
+        return result
+
+
+def build_list(values):
+    if not values:
+        return None
+    head = ListNode(values[0])
+    cur = head
+    for v in values[1:]:
+        cur.next = ListNode(v)
+        cur = cur.next
+    return head
+
+
+def reverse_list(head):
+    prev = None
+    cur = head
+    while cur:
+        nxt = cur.next
+        cur.next = prev
+        prev = cur
+        cur = nxt
+    return prev
+
+
+def merge_sorted_lists(l1, l2):
+    dummy = ListNode(0)
+    tail = dummy
+    while l1 and l2:
+        if l1.val <= l2.val:
+            tail.next = l1
+            l1 = l1.next
+        else:
+            tail.next = l2
+            l2 = l2.next
+        tail = tail.next
+    tail.next = l1 or l2
+    return dummy.next
+
+
+def has_cycle(head):
+    slow = fast = head
+    while fast and fast.next:
+        slow = slow.next
+        fast = fast.next.next
+        if slow is fast:
+            return True
+    return False
+
+
+def linkedlist_tests():
+    itestdd().check_eq(orig, [1, 2, 3, 4, 5])
+    orig = build_list([1, 2, 3, 4, 5]).to_list()
+
+    itestdd().check_eq(rev, [5, 4, 3, 2, 1])
+    rev = reverse_list(build_list([1, 2, 3, 4, 5])).to_list()
+
+    itestdd().check_eq(rev2, [1])
+    rev2 = reverse_list(build_list([1])).to_list()
+
+    itestdd().check_eq(merged, [1, 2, 3, 4, 5, 6])
+    merged = merge_sorted_lists(build_list([1, 3, 5]), build_list([2, 4, 6])).to_list()
+
+    itestdd().check_eq(merged2, [1, 1, 2, 3, 4])
+    merged2 = merge_sorted_lists(build_list([1, 2, 4]), build_list([1, 3])).to_list()
+
+    itestdd().check_false(no_cycle)
+    no_cycle = has_cycle(build_list([1, 2, 3]))
+
+    # Build a list with cycle
+    cyclic = build_list([1, 2, 3, 4])
+    tail_node = cyclic.next.next.next  # node 4
+    tail_node.next = cyclic.next       # cycle back to node 2
+
+    itestdd().check_true(yes_cycle)
+    yes_cycle = has_cycle(cyclic)
+
+
+# ============================================================
+# Dynamic Programming: Longest Common Subsequence
+# ============================================================
+
+def lcs(s1, s2):
+    m, n = len(s1), len(s2)
+    dp = [[0] * (n + 1) for _ in range(m + 1)]
+    for i in range(1, m + 1):
+        for j in range(1, n + 1):
+            if s1[i - 1] == s2[j - 1]:
+                dp[i][j] = dp[i - 1][j - 1] + 1
+            else:
+                dp[i][j] = max(dp[i - 1][j], dp[i][j - 1])
+    return dp[m][n]
+
+
+def lcs_tests():
+    itestdd().check_eq(r1, 3)
+    r1 = lcs("abcde", "ace")
+
+    itestdd().check_eq(r2, 0)
+    r2 = lcs("abc", "def")
+
+    itestdd().check_eq(r3, 3)
+    r3 = lcs("abc", "abc")
+
+    itestdd().check_eq(r4, 4)
+    r4 = lcs("AGGTAB", "GXTXAYB")
+
+
+# ============================================================
+# Dynamic Programming: 0/1 Knapsack
+# ============================================================
+
+def knapsack(weights, values, capacity):
+    n = len(weights)
+    dp = [[0] * (capacity + 1) for _ in range(n + 1)]
+    for i in range(1, n + 1):
+        for w in range(capacity + 1):
+            if weights[i - 1] <= w:
+                dp[i][w] = max(
+                    dp[i - 1][w],
+                    dp[i - 1][w - weights[i - 1]] + values[i - 1]
+                )
+            else:
+                dp[i][w] = dp[i - 1][w]
+    return dp[n][capacity]
+
+
+def knapsack_tests():
+    itestdd().check_eq(r1, 10)
+    r1 = knapsack([2, 3, 4, 5], [3, 4, 5, 6], 8)
+
+    itestdd().check_eq(r2, 220)
+    r2 = knapsack([10, 20, 30], [60, 100, 120], 50)
+
+    itestdd().check_eq(r3, 0)
+    r3 = knapsack([10], [100], 5)
+
+
+# ============================================================
+# Heap Sort
+# ============================================================
+
+def heap_sort(arr):
+    import heapq
+    heap = arr[:]
+    heapq.heapify(heap)
+    return [heapq.heappop(heap) for _ in range(len(heap))]
+
+
+def heapsort_tests():
+    itestdd().check_eq(r, [1, 2, 3, 4, 5])
+    r = heap_sort([5, 3, 1, 4, 2])
+
+    itestdd().check_eq(r2, [-3, -1, 0, 2, 5])
+    r2 = heap_sort([2, -1, 5, 0, -3])
+
+    itestdd().check_eq(r3, [1, 1, 1, 2, 2])
+    r3 = heap_sort([2, 1, 1, 2, 1])
+
+
+# ============================================================
+# Two Sum (hash map)
+# ============================================================
+
+def two_sum(nums, target):
+    seen = {}
+    for i, num in enumerate(nums):
+        complement = target - num
+        if complement in seen:
+            return [seen[complement], i]
+        seen[num] = i
+    return []
+
+
+def twosum_tests():
+    itestdd().check_eq(r1, [0, 1])
+    r1 = two_sum([2, 7, 11, 15], 9)
+
+    itestdd().check_eq(r2, [1, 2])
+    r2 = two_sum([3, 2, 4], 6)
+
+    itestdd().check_eq(r3, [0, 1])
+    r3 = two_sum([3, 3], 6)
+
+    itestdd().check_eq(r4, [])
+    r4 = two_sum([1, 2, 3], 10)
+
+
+# ============================================================
+# Valid Parentheses
+# ============================================================
+
+def valid_parens(s):
+    stack = []
+    mapping = {")": "(", "]": "[", "}": "{"}
+    for ch in s:
+        if ch in mapping:
+            if not stack or stack[-1] != mapping[ch]:
+                return False
+            stack.pop()
+        else:
+            stack.append(ch)
+    return len(stack) == 0
+
+
+def parens_tests():
+    itestdd().check_true(r1)
+    r1 = valid_parens("()")
+
+    itestdd().check_true(r2)
+    r2 = valid_parens("()[]{}")
+
+    itestdd().check_false(r3)
+    r3 = valid_parens("(]")
+
+    itestdd().check_true(r4)
+    r4 = valid_parens("{[()]}")
+
+    itestdd().check_false(r5)
+    r5 = valid_parens("((")
+
+    itestdd().check_true(r6)
+    r6 = valid_parens("")
+
+    itestdd().check_false(r7)
+    r7 = valid_parens("([)]")
+
+
+# ============================================================
+# Topological Sort (Kahn's algorithm)
+# ============================================================
+
+def topo_sort(num_nodes, edges):
+    in_degree = [0] * num_nodes
+    adj = defaultdict(list)
+    for u, v in edges:
+        adj[u].append(v)
+        in_degree[v] += 1
+
+    queue = deque([i for i in range(num_nodes) if in_degree[i] == 0])
+    order = []
+    while queue:
+        node = queue.popleft()
+        order.append(node)
+        for neighbor in adj[node]:
+            in_degree[neighbor] -= 1
+            if in_degree[neighbor] == 0:
+                queue.append(neighbor)
+    if len(order) != num_nodes:
+        return []
+    return order
+
+
+def toposort_tests():
+    itestdd().check_eq(r1, [0, 1, 2, 3])
+    r1 = topo_sort(4, [(0, 1), (0, 2), (1, 3), (2, 3)])
+
+    itestdd().check_eq(r2, [0, 1, 2])
+    r2 = topo_sort(3, [(0, 1), (1, 2)])
+
+    # Cycle detection
+    itestdd().check_eq(r3, [])
+    r3 = topo_sort(3, [(0, 1), (1, 2), (2, 0)])
+
+
+# ============================================================
+# Dijkstra's shortest path
+# ============================================================
+
+import heapq
+
+def dijkstra(graph, start):
+    dist = {node: float("inf") for node in graph}
+    dist[start] = 0
+    heap = [(0, start)]
+    while heap:
+        d, u = heapq.heappop(heap)
+        if d > dist[u]:
+            continue
+        for v, w in graph[u]:
+            nd = d + w
+            if nd < dist[v]:
+                dist[v] = nd
+                heapq.heappush(heap, (nd, v))
+    return dist
+
+
+def dijkstra_tests():
+    graph = {
+        "A": [("B", 1), ("C", 4)],
+        "B": [("C", 2), ("D", 5)],
+        "C": [("D", 1)],
+        "D": [],
+    }
+
+    itestdd().check_eq(r["A"], 0)
+    r = dijkstra(graph, "A")
+
+    itestdd().check_eq(r2, 1)
+    r2 = r["B"]
+
+    itestdd().check_eq(r3, 3)
+    r3 = r["C"]
+
+    itestdd().check_eq(r4, 4)
+    r4 = r["D"]
+
+
+# ============================================================
+# Edit Distance (Levenshtein)
+# ============================================================
+
+def edit_distance(s1, s2):
+    m, n = len(s1), len(s2)
+    dp = [[0] * (n + 1) for _ in range(m + 1)]
+    for i in range(m + 1):
+        dp[i][0] = i
+    for j in range(n + 1):
+        dp[0][j] = j
+    for i in range(1, m + 1):
+        for j in range(1, n + 1):
+            if s1[i - 1] == s2[j - 1]:
+                dp[i][j] = dp[i - 1][j - 1]
+            else:
+                dp[i][j] = 1 + min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1])
+    return dp[m][n]
+
+
+def editdist_tests():
+    itestdd().check_eq(d1, 3)
+    d1 = edit_distance("kitten", "sitting")
+
+    itestdd().check_eq(d2, 0)
+    d2 = edit_distance("abc", "abc")
+
+    itestdd().check_eq(d3, 3)
+    d3 = edit_distance("", "abc")
+
+    itestdd().check_eq(d4, 5)
+    d4 = edit_distance("horse", "")
+
+    itestdd().check_eq(d5, 1)
+    d5 = edit_distance("cat", "bat")
+
+
+# ============================================================
+# Run-length encoding / decoding
+# ============================================================
+
+def rle_encode(s):
+    if not s:
+        return ""
+    result = []
+    count = 1
+    for i in range(1, len(s)):
+        if s[i] == s[i - 1]:
+            count += 1
+        else:
+            result.append(f"{s[i-1]}{count}")
+            count = 1
+    result.append(f"{s[-1]}{count}")
+    return "".join(result)
+
+
+def rle_decode(s):
+    result = []
+    i = 0
+    while i < len(s):
+        ch = s[i]
+        num = ""
+        i += 1
+        while i < len(s) and s[i].isdigit():
+            num += s[i]
+            i += 1
+        result.append(ch * int(num))
+    return "".join(result)
+
+
+def rle_tests():
+    itestdd().check_eq(e1, "a3b2c1")
+    e1 = rle_encode("aaabbc")
+
+    itestdd().check_eq(e2, "a1b1c1")
+    e2 = rle_encode("abc")
+
+    itestdd().check_eq(e3, "a5")
+    e3 = rle_encode("aaaaa")
+
+    itestdd().check_eq(e4, "")
+    e4 = rle_encode("")
+
+    itestdd().check_eq(d1, "aaabbc")
+    d1 = rle_decode("a3b2c1")
+
+    itestdd().check_eq(d2, "abc")
+    d2 = rle_decode("a1b1c1")
+
+    # Round-trip
+    itestdd().check_eq(rt, "hello world")
+    rt = rle_decode(rle_encode("hello world"))

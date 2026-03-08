@@ -1,6 +1,19 @@
 from ast import List
 
 
+class _NoOpChain:
+    """A proxy that absorbs any method call and returns itself,
+    allowing itestdd() chains to execute safely at runtime even
+    when TDD-mode variables are not yet assigned."""
+    __slots__ = ()
+
+    def __getattr__(self, name):
+        return self._noop
+
+    def _noop(self, *args, **kwargs):
+        return self
+
+
 class itestdd:
     def __init__(
         self,
@@ -22,7 +35,7 @@ class itestdd:
         :param timeout: seconds to timeout the test, must be a float
         """
 
-    def given(self, variable, value):
+    def given(self, variable=None, value=None):
         """
         Set value to a variable.
 
@@ -32,7 +45,7 @@ class itestdd:
         """
         return self
 
-    def check_eq(self, actual_value, expected_value):
+    def check_eq(self, actual_value=None, expected_value=None):
         """
         Assert whether two values equal
 
@@ -43,7 +56,7 @@ class itestdd:
         """
         return self
 
-    def check_neq(self, actual_value, expected_value):
+    def check_neq(self, actual_value=None, expected_value=None):
         """
         Assert whether two values are not equal
 
@@ -54,7 +67,7 @@ class itestdd:
         """
         return self
 
-    def check_true(self, expr):
+    def check_true(self, expr=None):
         """
         Assert whether a boolean expression is true
 
@@ -64,7 +77,7 @@ class itestdd:
         """
         return self
 
-    def check_false(self, expr):
+    def check_false(self, expr=None):
         """
         Assert whether a boolean expression is false
 
@@ -74,7 +87,7 @@ class itestdd:
         """
         return self
 
-    def check_none(self, variable):
+    def check_none(self, variable=None):
         """
         Assert whether a variable is None
 
@@ -84,7 +97,7 @@ class itestdd:
         """
         return self
 
-    def check_not_none(self, variable):
+    def check_not_none(self, variable=None):
         """
         Assert whether a variable is not None
 
@@ -94,7 +107,7 @@ class itestdd:
         """
         return self
 
-    def check_same(self, actual_value, expected_value):
+    def check_same(self, actual_value=None, expected_value=None):
         """
         Assert whether an object is the same as a given expected object
 
@@ -105,7 +118,7 @@ class itestdd:
         """
         return self
 
-    def check_not_same(self, actual_value, expected_value):
+    def check_not_same(self, actual_value=None, expected_value=None):
         """
         Assert whether an object is not the same as a given expected object
 

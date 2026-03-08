@@ -174,6 +174,7 @@ class InlineTest:
         self.timeout = -1.0
         self.devices = None
         self.globs = {}
+        self.func_params = set()
 
     def write_imports(self):
         import_str = ""
@@ -181,10 +182,40 @@ class InlineTest:
             import_str += ExtractInlineTest.node_to_source_code(n) + "\n"
         return import_str
 
+    @staticmethod
+    def _get_read_names(node):
+        """Get all names read (loaded) by an AST node."""
+        names = set()
+        for child in ast.walk(node):
+            if isinstance(child, ast.Name) and isinstance(child.ctx, ast.Load):
+                names.add(child.id)
+        return names
+
+    @staticmethod
+    def _get_assigned_names(stmt):
+        """Get all names assigned (stored) by a statement."""
+        names = set()
+        if isinstance(stmt, ast.Assign):
+            for target in stmt.targets:
+                for child in ast.walk(target):
+                    if isinstance(child, ast.Name) and isinstance(child.ctx, ast.Store):
+                        names.add(child.id)
+        elif isinstance(stmt, ast.AugAssign):
+            if isinstance(stmt.target, ast.Name):
+                names.add(stmt.target.id)
+        elif isinstance(stmt, ast.AnnAssign) and stmt.target:
+            if isinstance(stmt.target, ast.Name):
+                names.add(stmt.target.id)
+        elif isinstance(stmt, ast.For):
+            for child in ast.walk(stmt.target):
+                if isinstance(child, ast.Name) and isinstance(child.ctx, ast.Store):
+                    names.add(child.id)
+        return names
+
     def _get_filtered_previous_stmts(self):
-        """Filter out preceding assignment statements whose target variables
-        are already provided by given() calls, so that given() values are not
-        overwritten by earlier computations that may require undefined variables.
+        """Filter out preceding statements that cannot execute because they
+        reference undefined variables (function parameters not provided by
+        given(), or local variables defined by skipped statements).
         The last element (the target statement) is always kept."""
         if not self.given_stmts or len(self.previous_stmts) <= 1:
             return self.previous_stmts
@@ -199,15 +230,33 @@ class InlineTest:
         if not given_var_names:
             return self.previous_stmts
 
+        # Variables known to be available at execution time
+        available = set(given_var_names)
+        # Local names whose defining statements were skipped
+        skipped_locals = set()
+        func_params = self.func_params or set()
+
         filtered = []
         for stmt in self.previous_stmts[:-1]:
+            # Rule 1: skip assignments whose targets are all given() vars
             if isinstance(stmt, ast.Assign):
                 if all(isinstance(t, ast.Name) and t.id in given_var_names for t in stmt.targets):
                     continue
             elif isinstance(stmt, ast.AugAssign):
                 if isinstance(stmt.target, ast.Name) and stmt.target.id in given_var_names:
                     continue
+
+            # Rule 2: skip if stmt reads a func param not available, or a skipped local
+            read_names = self._get_read_names(stmt)
+            must_be_local = func_params | skipped_locals
+            missing = (read_names & must_be_local) - available
+            if missing:
+                # Track the names this skipped statement would have defined
+                skipped_locals.update(self._get_assigned_names(stmt))
+                continue
+
             filtered.append(stmt)
+            available.update(self._get_assigned_names(stmt))
 
         # Always keep the target statement (last element)
         filtered.append(self.previous_stmts[-1])
@@ -1262,6 +1311,24 @@ class ExtractInlineTest(ast.NodeTransformer):
                 # Traditional mode: only include the related statement
                 self.cur_inline_test.previous_stmts.append(related_stmt)
 
+            # Set function parameters for dependency-based filtering
+            func_node = node
+            while func_node and not isinstance(func_node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                func_node = getattr(func_node, 'parent', None)
+            if func_node and isinstance(func_node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                params = set()
+                for arg in func_node.args.args:
+                    params.add(arg.arg)
+                for arg in func_node.args.posonlyargs:
+                    params.add(arg.arg)
+                for arg in func_node.args.kwonlyargs:
+                    params.add(arg.arg)
+                if func_node.args.vararg:
+                    params.add(func_node.args.vararg.arg)
+                if func_node.args.kwarg:
+                    params.add(func_node.args.kwarg.arg)
+                self.cur_inline_test.func_params = params
+
             # parse inline test
             self.parse_inline_test(node.value)
         return self.generic_visit(node)
@@ -1382,11 +1449,75 @@ class InlineTestFinder:
 ## InlineTest Runner
 ######################################################################
 class InlineTestRunner:
+    _cleaned_funcs_cache = {}
+
+    @staticmethod
+    def _is_itestdd_chain(call_node):
+        """Check if a Call AST node is an itestdd() call chain."""
+        if isinstance(call_node.func, ast.Name) and call_node.func.id == 'itestdd':
+            return True
+        if isinstance(call_node.func, ast.Attribute) and isinstance(call_node.func.value, ast.Call):
+            return InlineTestRunner._is_itestdd_chain(call_node.func.value)
+        return False
+
+    @staticmethod
+    def _clean_function_source(func, globs):
+        """Create a copy of func with itestdd() calls removed from its body."""
+        import types
+        import textwrap
+        try:
+            source = textwrap.dedent(inspect.getsource(func))
+            func_tree = ast.parse(source)
+        except (OSError, TypeError, SyntaxError, IndentationError):
+            return func
+
+        class _ItestddRemover(ast.NodeTransformer):
+            def visit_Expr(self, node):
+                if isinstance(node.value, ast.Call) and InlineTestRunner._is_itestdd_chain(node.value):
+                    return None
+                return self.generic_visit(node)
+
+        func_tree = _ItestddRemover().visit(func_tree)
+        ast.fix_missing_locations(func_tree)
+        try:
+            code = compile(func_tree, inspect.getfile(func), 'exec')
+            local_ns = {}
+            exec(code, globs, local_ns)
+            for obj in local_ns.values():
+                if isinstance(obj, types.FunctionType):
+                    return obj
+        except Exception:
+            pass
+        return func
+
+    def _prepare_globs(self, globs):
+        """Replace functions containing itestdd() calls with cleaned versions
+        so that runtime calls to those functions do not crash on unbound
+        TDD-mode variable references."""
+        import types
+        for name, obj in list(globs.items()):
+            if not isinstance(obj, types.FunctionType):
+                continue
+            func_id = id(obj)
+            if func_id in self._cleaned_funcs_cache:
+                globs[name] = self._cleaned_funcs_cache[func_id]
+                continue
+            try:
+                source = inspect.getsource(obj)
+            except (OSError, TypeError):
+                continue
+            if 'itestdd' not in source:
+                continue
+            cleaned = self._clean_function_source(obj, globs)
+            self._cleaned_funcs_cache[func_id] = cleaned
+            globs[name] = cleaned
+
     def run(self, test: InlineTest, out: List) -> None:
         test_str = test.write_imports()
         test_str += test.to_test()
         tree = ast.parse(test_str)
         codeobj = compile(tree, filename="<ast>", mode="exec")
+        self._prepare_globs(test.globs)
         if test.timeout > 0:
             with timeout(seconds=test.timeout):
                 exec(codeobj, test.globs)
