@@ -39,8 +39,8 @@ dependencies = ["pytest>=7.0,<9.0"]
 dev = ["hatch", "coverage[toml]", "black", "ruff", "tox", "tox-gh"]
 
 [project.urls]
-Issues = "https://github.com/pytest-dev/pytest-inline/issues"
-Source = "https://github.com/pytest-dev/pytest-inline"
+Issues = "https://github.com/zzctmac/inline-tdd/issues"
+Source = "https://github.com/zzctmac/inline-tdd"
 
 [project.entry-points.pytest11]
 inline_tdd = "inline_tdd.plugin"
