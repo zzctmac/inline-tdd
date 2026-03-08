@@ -216,7 +216,7 @@ strip-itestdd path/to/file.py -o clean_file.py
 You can also run it as a module:
 
 ```bash
-python -m inline_tdd.strip path/to/file.py --i
+python -m inline_tdd.strip path/to/file.py -i
 ```
 
 **Before:**
