@@ -200,7 +200,7 @@ Only one check assertion is allowed per inline test.
 
 ## Stripping Inline Tests
 
-When deploying to production, you can remove all `inline_tdd` related code (imports and `itestdd()` calls) from your source files using the built-in `strip-itestdd` command:
+When deploying to production, you can remove (comment) all `inline_tdd` related code (imports and `itestdd()` calls) from your source files using the built-in `strip-itestdd` command:
 
 ```bash
 # Print cleaned code to stdout
@@ -231,7 +231,10 @@ def example(a):
 
 **After:**
 ```python
+# from inline_tdd import itestdd
+
 def example(a):
+    # itestdd().given(a, 1).check_eq(b, 2)
     b = a + 1
     return b
 ```
