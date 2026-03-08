@@ -189,3 +189,5 @@ T = 12 * 4
 def calculate_with_T(a):
     itestdd().given(a, 3).check_eq(b, 51)
     b = T + a
+
+C = calculate_with_T(1)

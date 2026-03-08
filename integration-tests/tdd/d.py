@@ -28,6 +28,6 @@ def quicksort(arr, low=None, high=None):
         quicksort(arr, pi + 1, high)
     return arr
 
-if __name__ == "__main__":
-    print(_partition([3, 6, 1, 8, 2], 0, 4))
-    print(quicksort([3, 6, 1, 8, 2]))
+
+print(_partition([3, 6, 1, 8, 2], 0, 4))
+print(quicksort([3, 6, 1, 8, 2]))

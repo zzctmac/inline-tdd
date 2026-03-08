@@ -100,6 +100,13 @@ def pytest_addoption(parser: Parser) -> None:
         help="order inlinetests",
         dest="inlinetest_order",
     )
+    parser.addoption(
+        "--inline-show-tests",
+        action="store_true",
+        default=False,
+        help="print the generated test code for each inline test",
+        dest="inline_show_tests",
+    )
 
 
 @pytest.hookimpl()
@@ -1512,9 +1519,15 @@ class InlineTestRunner:
             self._cleaned_funcs_cache[func_id] = cleaned
             globs[name] = cleaned
 
-    def run(self, test: InlineTest, out: List) -> None:
+    def run(self, test: InlineTest, out: List, show: bool = False) -> None:
         test_str = test.write_imports()
         test_str += test.to_test()
+        if show:
+            print(f"\n{'='*60}")
+            print(f"Generated test: {test.test_name} (line {test.lineno})")
+            print(f"{'='*60}")
+            print(test_str)
+            print(f"{'='*60}")
         tree = ast.parse(test_str)
         codeobj = compile(tree, filename="<ast>", mode="exec")
         self._prepare_globs(test.globs)
@@ -1590,9 +1603,10 @@ class InlinetestItem(pytest.Item):
     def runtest(self) -> None:
         assert self.dtest is not None
         assert self.runner is not None
+        show = self.config.getoption("inline_show_tests", False)
         for round_index in range(1, self.dtest.repeated + 1):
             failures: List[str] = []
-            self.runner.run(copy.copy(self.dtest), failures)
+            self.runner.run(copy.copy(self.dtest), failures, show=show)
             if failures:
                 print(failures)
 
@@ -1626,6 +1640,67 @@ class InlinetestModule(pytest.Module):
 
         return prio_sorted
 
+    @staticmethod
+    def _body_contains_itestdd(node):
+        """Return True if *node* (a FunctionDef) contains an itestdd() call."""
+        for child in ast.walk(node):
+            if not isinstance(child, ast.Call):
+                continue
+            inner = child
+            while isinstance(inner, ast.Call):
+                if isinstance(inner.func, ast.Name) and inner.func.id == "itestdd":
+                    return True
+                if isinstance(inner.func, ast.Attribute) and isinstance(inner.func.value, ast.Call):
+                    inner = inner.func.value
+                else:
+                    break
+        return False
+
+    @staticmethod
+    def _stmt_calls_any(stmt, func_names):
+        """Return True if *stmt* contains a direct call to any name in *func_names*."""
+        for child in ast.walk(stmt):
+            if isinstance(child, ast.Call) and isinstance(child.func, ast.Name):
+                if child.func.id in func_names:
+                    return True
+        return False
+
+    @staticmethod
+    def _safe_import(file_path):
+        """Import *file_path* after stripping module-level statements that
+        call functions containing itestdd() chains.  Those statements would
+        otherwise raise ``UnboundLocalError`` because TDD-mode itestdd()
+        references variables before their assignment."""
+        source = file_path.read_text(encoding="utf-8")
+        tree = ast.parse(source, filename=str(file_path))
+
+        # 1. Identify top-level functions whose bodies contain itestdd().
+        itestdd_func_names = set()
+        for node in ast.iter_child_nodes(tree):
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                if InlinetestModule._body_contains_itestdd(node):
+                    itestdd_func_names.add(node.name)
+
+        if not itestdd_func_names:
+            # No itestdd-containing functions; nothing to strip.
+            return None
+
+        # 2. Remove module-level statements that invoke those functions.
+        new_body = [
+            stmt for stmt in tree.body
+            if not InlinetestModule._stmt_calls_any(stmt, itestdd_func_names)
+        ]
+        tree.body = new_body
+        ast.fix_missing_locations(tree)
+
+        # 3. Compile & exec into a fresh module object.
+        mod = ModuleType(file_path.stem)
+        mod.__file__ = str(file_path)
+        code = compile(tree, str(file_path), "exec")
+        exec(code, mod.__dict__)
+        sys.modules[file_path.stem] = mod
+        return mod
+
     def collect(self) -> Iterable[InlinetestItem]:
         if self.path.name == "conftest.py":
             module = self.config.pluginmanager._importconftest(
@@ -1637,6 +1712,13 @@ class InlinetestModule(pytest.Module):
             try:
                 # TODO: still need to find the right way to import without errors. mode=ImportMode.importlib did not work
                 module = import_path(self.path, root=self.config.rootpath)
+            except UnboundLocalError:
+                # Module-level code calls a function containing itestdd()
+                # which references TDD-mode variables before assignment.
+                # Fall back to a safe import that strips those calls.
+                module = self._safe_import(self.path)
+                if module is None:
+                    raise
             except Exception as e:
                 # (ImportError, ModuleNotFoundError, TypeError, NameError, FileNotFoundError)
                 if self.config.getvalue("inlinetest_ignore_import_errors"):
