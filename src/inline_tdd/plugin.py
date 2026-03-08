@@ -1387,14 +1387,11 @@ class InlineTestRunner:
         test_str += test.to_test()
         tree = ast.parse(test_str)
         codeobj = compile(tree, filename="<ast>", mode="exec")
-        start_time = time.time()
         if test.timeout > 0:
             with timeout(seconds=test.timeout):
                 exec(codeobj, test.globs)
         else:
             exec(codeobj, test.globs)
-        end_time = time.time()
-        out.append(f"Test Execution time: {round(end_time - start_time, 4)} seconds")
         if test.globs:
             test.globs.clear()
 
