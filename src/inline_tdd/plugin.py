@@ -1461,7 +1461,7 @@ class InlineTestRunner:
         return False
 
     @staticmethod
-    def _clean_function_source(func, globs):
+    def _clean_function_source(func):
         """Create a copy of func with itestdd() calls removed from its body."""
         import types
         import textwrap
@@ -1482,7 +1482,7 @@ class InlineTestRunner:
         try:
             code = compile(func_tree, inspect.getfile(func), 'exec')
             local_ns = {}
-            exec(code, globs, local_ns)
+            exec(code, func.__globals__, local_ns)
             for obj in local_ns.values():
                 if isinstance(obj, types.FunctionType):
                     return obj
@@ -1508,7 +1508,7 @@ class InlineTestRunner:
                 continue
             if 'itestdd' not in source:
                 continue
-            cleaned = self._clean_function_source(obj, globs)
+            cleaned = self._clean_function_source(obj)
             self._cleaned_funcs_cache[func_id] = cleaned
             globs[name] = cleaned
 
