@@ -198,6 +198,44 @@ Multiple `given()` calls can be chained. Assigns test input values to variables 
 
 Only one check assertion is allowed per inline test.
 
+## Stripping Inline Tests
+
+When deploying to production, you can remove all `inline_tdd` related code (imports and `itestdd()` calls) from your source files using the built-in `strip-itestdd` command:
+
+```bash
+# Print cleaned code to stdout
+strip-itestdd path/to/file.py
+
+# Edit the file in-place
+strip-itestdd path/to/file.py -i
+
+# Write cleaned output to a new file
+strip-itestdd path/to/file.py -o clean_file.py
+```
+
+You can also run it as a module:
+
+```bash
+python -m inline_tdd.strip path/to/file.py --i
+```
+
+**Before:**
+```python
+from inline_tdd import itestdd
+
+def example(a):
+    itestdd().given(a, 1).check_eq(b, 2)
+    b = a + 1
+    return b
+```
+
+**After:**
+```python
+def example(a):
+    b = a + 1
+    return b
+```
+
 ## Performance
 
 Inline tests are fast — each test verifies only a single statement. In non-testing mode (i.e., normal production execution), all `itestdd()` calls behave as no-op function calls with negligible overhead.

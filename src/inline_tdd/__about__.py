@@ -1,4 +1,4 @@
-# SPDX-FileCopyrightText: 2022-present Inline Tests Dev Team  <im.yukiliu@gmail.com>
+# SPDX-FileCopyrightText: 2022-present Inline Test Driven Development Team  <zhouzhch@shanghaitech.edu.cn>
 #
 # SPDX-License-Identifier: MIT
-__version__ = "1.2.3"
+__version__ = "1.2.4"

@@ -42,6 +42,9 @@ Source = "https://github.com/zzctmac/inline-tdd"
 [project.entry-points.pytest11]
 inline_tdd = "inline_tdd.plugin"
 
+[project.scripts]
+strip-itestdd = "inline_tdd.strip:main"
+
 [tool.hatch.version]
 path = "src/inline_tdd/__about__.py"
 
