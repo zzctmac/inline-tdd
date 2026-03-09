@@ -243,6 +243,10 @@ def example(a):
 
 Inline tests are fast — each test verifies only a single statement. In non-testing mode (i.e., normal production execution), all `itestdd()` calls behave as no-op function calls with negligible overhead.
 
+## Notice
+
+**Do not name functions containing inline tests with a `test_` prefix.** Pytest automatically collects functions whose names start with `test_` as regular test cases and tries to resolve their parameters as fixtures. If the function has parameters that are only used with `itestdd().given(...)`, pytest will fail with a `fixture 'xxx' not found` error. Use a non-`test_` name (e.g., `compute`, `my_func`) to avoid this conflict.
+
 ## Citation
 
 This project builds on the following research:
