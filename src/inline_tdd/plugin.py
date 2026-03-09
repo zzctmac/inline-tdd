@@ -185,7 +185,16 @@ class InlineTest:
 
     def write_imports(self):
         import_str = ""
+        # Keep __future__ imports at the top to satisfy Python syntax rules.
+        future_imports = []
+        regular_imports = []
         for n in self.import_stmts:
+            if isinstance(n, ast.ImportFrom) and n.module == "__future__":
+                future_imports.append(n)
+            else:
+                regular_imports.append(n)
+
+        for n in future_imports + regular_imports:
             import_str += ExtractInlineTest.node_to_source_code(n) + "\n"
         return import_str
 
@@ -623,9 +632,9 @@ class ExtractInlineTest(ast.NodeTransformer):
             inline_test_calls.append(node)
             self.collect_inline_test_calls(node.func, inline_test_calls)
 
-    def collect_import_calls(self, node, import_calls: List[ast.Import], import_from_calls: List[ast.ImportFrom]):
+    def collect_import_calls(self, node, import_stmts: List[ast.stmt]):
         """
-        collect all import calls in the node (should be done first)
+        Collect top-level import statements in source order.
         """
 
         while not isinstance(node, ast.Module) and node.parent != None:
@@ -635,10 +644,8 @@ class ExtractInlineTest(ast.NodeTransformer):
             return
 
         for child in node.children:
-            if isinstance(child, ast.Import):
-                import_calls.append(child)
-            elif isinstance(child, ast.ImportFrom):
-                import_from_calls.append(child)
+            if isinstance(child, (ast.Import, ast.ImportFrom)):
+                import_stmts.append(child)
 
     def parse_constructor(self, node):
         """
@@ -1204,12 +1211,11 @@ class ExtractInlineTest(ast.NodeTransformer):
             parameterized_test.test_name = self.cur_inline_test.test_name + "_" + str(index)
 
     def parse_inline_test(self, node):
-        import_calls = []
-        import_from_calls = []
+        import_stmts = []
         inline_test_calls = []
 
         self.collect_inline_test_calls(node, inline_test_calls)
-        self.collect_import_calls(node, import_calls, import_from_calls)
+        self.collect_import_calls(node, import_stmts)
 
         inline_test_calls.reverse()
 
@@ -1239,9 +1245,7 @@ class ExtractInlineTest(ast.NodeTransformer):
             else:
                 break
 
-        for import_stmt in import_calls:
-            self.cur_inline_test.import_stmts.append(import_stmt)
-        for import_stmt in import_from_calls:
+        for import_stmt in import_stmts:
             self.cur_inline_test.import_stmts.append(import_stmt)
 
         # "check_eq" or "check_true" or "check_false" or "check_neq"
