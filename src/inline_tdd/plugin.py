@@ -226,6 +226,8 @@ class InlineTest:
             for child in ast.walk(stmt.target):
                 if isinstance(child, ast.Name) and isinstance(child.ctx, ast.Store):
                     names.add(child.id)
+        elif isinstance(stmt, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
+            names.add(stmt.name)
         return names
 
     def _get_filtered_previous_stmts(self):
@@ -278,19 +280,40 @@ class InlineTest:
         filtered.append(self.previous_stmts[-1])
         return filtered
 
+    def _partition_previous_for_given(self, filtered_previous):
+        """Split filtered_previous into class/function definitions that are
+        referenced by given_stmts (must precede them) and everything else."""
+        if not self.given_stmts or not filtered_previous:
+            return [], filtered_previous
+        given_read_names = set()
+        for stmt in self.given_stmts:
+            given_read_names.update(self._get_read_names(stmt))
+        pre_given = []
+        post_given = []
+        for stmt in filtered_previous:
+            if isinstance(stmt, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
+                if stmt.name in given_read_names:
+                    pre_given.append(stmt)
+                    continue
+            post_given.append(stmt)
+        return pre_given, post_given
+
     def to_test(self):
         prefix = "\n"
         filtered_previous = self._get_filtered_previous_stmts()
+        pre_given, post_given = self._partition_previous_for_given(filtered_previous)
 
         if self.prev_stmt_type == PrevStmtType.CondExpr:
             if self.assume_stmts == []:
                 return prefix.join(
-                    [ExtractInlineTest.node_to_source_code(n) for n in self.given_stmts]
+                    [ExtractInlineTest.node_to_source_code(n) for n in pre_given]
+                    + [ExtractInlineTest.node_to_source_code(n) for n in self.given_stmts]
+                    + [ExtractInlineTest.node_to_source_code(n) for n in post_given]
                     + [ExtractInlineTest.node_to_source_code(n) for n in self.check_stmts]
                 )
             else:
                 body_nodes = (
-                    [n for n in self.given_stmts] + [n for n in filtered_previous] + [n for n in self.check_stmts]
+                    [n for n in pre_given] + [n for n in self.given_stmts] + [n for n in post_given] + [n for n in self.check_stmts]
                 )
                 assume_statement = self.assume_stmts[0]
                 assume_node = self.build_assume_node(assume_statement, body_nodes)
@@ -299,13 +322,14 @@ class InlineTest:
         else:
             if self.assume_stmts is None or self.assume_stmts == []:
                 return prefix.join(
-                    [ExtractInlineTest.node_to_source_code(n) for n in self.given_stmts]
-                    + [ExtractInlineTest.node_to_source_code(n) for n in filtered_previous]
+                    [ExtractInlineTest.node_to_source_code(n) for n in pre_given]
+                    + [ExtractInlineTest.node_to_source_code(n) for n in self.given_stmts]
+                    + [ExtractInlineTest.node_to_source_code(n) for n in post_given]
                     + [ExtractInlineTest.node_to_source_code(n) for n in self.check_stmts]
                 )
             else:
                 body_nodes = (
-                    [n for n in self.given_stmts] + [n for n in filtered_previous] + [n for n in self.check_stmts]
+                    [n for n in pre_given] + [n for n in self.given_stmts] + [n for n in post_given] + [n for n in self.check_stmts]
                 )
                 assume_statement = self.assume_stmts[0]
                 assume_node = self.build_assume_node(assume_statement, body_nodes)
